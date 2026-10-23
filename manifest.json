@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "goldbarth.artstation-wallpaper",
+  "name": "ArtStation Wallpaper",
+  "version": "0.1.0",
+  "author": "goldbarth",
+  "license": "MIT",
+  "description": "Rotating wallpaper collages from ArtStation artists, fitted to your screen and grouped by locally tagged themes.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "ArtStation Wallpaper",
+    "description": "Rotating ArtStation collages. Click for settings, middle-click for the next one.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {},
+    "schema": []
+  }
+}
