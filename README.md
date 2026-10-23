@@ -1,6 +1,9 @@
 <div align="center">
 
-# ArtStation Wallpaper
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/tessella-wordmark.svg">
+  <img alt="Tessella" src="assets/tessella-wordmark-light.svg" width="300">
+</picture>
 
 **Rotating wallpaper collages from your favorite ArtStation artists, fitted to your screen.**
 
@@ -14,13 +17,38 @@
 
 </div>
 
-ArtStation Wallpaper is a bar widget and service for [Omarchy](https://omarchy.org/).
+Tessella is a bar widget and service for [Omarchy](https://omarchy.org/).
 You add ArtStation artists, and it turns their work into wallpaper collages that change on a schedule.
 Most concept art is portrait, most screens are wide, so a single image rarely fills the desktop well.
 The plugin picks a layout that suits your screen, for example three portraits side by side on an ultrawide monitor.
 
 It is a community plugin.
 It is not affiliated with, endorsed by, or supported by ArtStation or Epic Games.
+
+<table align="center">
+  <tr>
+    <td align="center" valign="top">
+      <img src="preview.png" alt="An ultrawide desktop with a collage of three portrait images side by side and the Tessella panel open on the right" width="600">
+      <br>
+      <sub>Three portraits side by side on 21:9</sub>
+    </td>
+    <td align="center" valign="top">
+      <img src="assets/preview-options.png" alt="The Tessella panel: current collage with image titles, rotation toggle, interval, themes and artists" width="162">
+      <br>
+      <sub>The panel</sub>
+    </td>
+  </tr>
+</table>
+
+> *Tessella* (Latin) - "a small mosaic tile". One small piece of a much larger world of art.
+
+> [!IMPORTANT]
+> Tessella currently works with ArtStation only.
+> Would you like images from another site?
+> [Open an issue](https://github.com/goldbarth/tessella/issues/new) and name the site.
+> If it is feasible, I will integrate it.
+
+---
 
 ## What it does
 
@@ -56,7 +84,7 @@ When several qualify, one is picked at random for each change.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/goldbarth/omarchy-artstation-wallpaper --enable
+omarchy plugin add https://github.com/goldbarth/tessella --enable
 ```
 
 If you use Ollama, pull the vision model once:
@@ -65,13 +93,22 @@ If you use Ollama, pull the vision model once:
 ollama pull gemma3:12b
 ```
 
+> [!NOTE]
+> The first sync after adding artists tags every downloaded image, one after another.
+> That keeps the GPU near full load and the machine noticeably warmer until it is done.
+> On an RTX 4080 Super, one image takes about 1.5 seconds, so 2,000 images take close to an hour.
+> Later syncs only tag new images, and Ollama unloads the model two minutes after the last one.
+> **Cancel sync** in the panel stops it at any time.
+> Images that are not tagged yet are picked up by the next **Sync now** or the next daily sync.
+> A smaller `visionModel` lowers the load at the cost of tag quality.
+
 Then click the bar icon, add an artist by username or profile link, and switch on **Rotate automatically**.
 The plugin never touches your background before you switch it on.
 
 Move the widget if you want it elsewhere in the bar:
 
 ```bash
-omarchy bar move goldbarth.artstation-wallpaper --section right
+omarchy bar move goldbarth.tessella --section right
 ```
 
 ## Usage
@@ -85,22 +122,23 @@ omarchy bar move goldbarth.artstation-wallpaper --section right
 | Panel | Image title | Open the project on ArtStation |
 | Panel | Artist name | Open the profile on ArtStation |
 
-In the panel you can also change the interval, deselect themes you do not want rolled, sync now, and add or remove artists.
+In the panel you can also change the interval, deselect themes you do not want rolled, sync now or cancel a running sync, and add or remove artists.
 Removing an artist deletes their downloaded images.
 
 The plugin can be driven over IPC, for example from a keybinding:
 
 ```bash
-omarchy-shell goldbarth.artstation-wallpaper next
-omarchy-shell goldbarth.artstation-wallpaper toggle
-omarchy-shell goldbarth.artstation-wallpaper sync
-omarchy-shell goldbarth.artstation-wallpaper status
+omarchy-shell goldbarth.tessella next
+omarchy-shell goldbarth.tessella toggle
+omarchy-shell goldbarth.tessella sync
+omarchy-shell goldbarth.tessella cancel
+omarchy-shell goldbarth.tessella status
 ```
 
 ## How it works
 
 `Service.qml` decides when to change, sync, or redraw.
-`artwall.py` does the work and is also usable from a terminal (`python3 artwall.py next`).
+`tessella.py` does the work and is also usable from a terminal (`python3 tessella.py next`).
 
 1. **Sync** reads each artist's public RSS feed (`https://www.artstation.com/<user>.rss`, all pages) and downloads new images from the ArtStation CDN.
    It runs on startup when the last sync is older than a day, and right after you add or remove an artist.
@@ -116,7 +154,7 @@ Network access goes only to `www.artstation.com` (RSS feeds), `cdn*.artstation.c
 
 ## Configuration
 
-Settings live in `~/.config/omarchy/artstation-wallpaper/config.json`.
+Settings live in `~/.config/omarchy/tessella/config.json`.
 The panel writes this file, but you can also edit it by hand.
 
 | Key | Default | Description |
@@ -132,14 +170,16 @@ The panel writes this file, but you can also edit it by hand.
 
 | Path | Content |
 |---|---|
-| `~/.config/omarchy/artstation-wallpaper/config.json` | Settings |
-| `~/.local/share/omarchy-artwall/` | Downloaded images, tag library, current collages |
-| `~/.local/state/omarchy-artwall/` | Sync progress, current selection, history |
+| `~/.config/omarchy/tessella/config.json` | Settings |
+| `~/.local/share/tessella/` | Downloaded images, tag library, current collages |
+| `~/.local/state/tessella/` | Sync progress, current selection, history |
 
 Images take about 100 to 450 MB per artist, depending on the size of their portfolio.
 
 ## Limitations
 
+- ArtStation is the only image source.
+  Other sites can be requested [in an issue](https://github.com/goldbarth/tessella/issues/new).
 - Tags come from a local model and are sometimes off, colors more often than settings or subjects.
 - Covers whose project title does not say "cover" can slip through and show cropped typography.
 - On multiple monitors the collage is rendered for the largest one.
@@ -152,8 +192,8 @@ Images take about 100 to 450 MB per artist, depending on the size of their portf
 ## Uninstall
 
 ```bash
-omarchy plugin remove goldbarth.artstation-wallpaper
-rm -rf ~/.config/omarchy/artstation-wallpaper ~/.local/share/omarchy-artwall ~/.local/state/omarchy-artwall
+omarchy plugin remove goldbarth.tessella
+rm -rf ~/.config/omarchy/tessella ~/.local/share/tessella ~/.local/state/tessella
 omarchy theme bg next
 ```
 

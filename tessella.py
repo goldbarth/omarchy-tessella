@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""ArtStation wallpaper backend: sync artists, tag images, render triptychs.
+"""Tessella backend: sync artists, tag images, render triptychs.
 
 Commands:
   sync      fetch every configured artist's RSS feed, download new images,
             drop removed artists, tag untagged images via Ollama
+  cancel    stop a running sync; what is done so far is kept
   next      pick a layout for the screen (e.g. 3 portraits on 21:9, 2 portraits
             or 1 landscape on 16:9), 1-2 themes and images; render and set it
   rerender  render the current selection again (new theme colors); picks a
@@ -12,10 +13,10 @@ Commands:
   status    print a JSON summary for the shell panel
 
 Files (single writer each):
-  config   ~/.config/omarchy/artstation-wallpaper/config.json   written by the panel
-  library  ~/.local/share/omarchy-artwall/library.json          written by sync
-  sync     ~/.local/state/omarchy-artwall/sync.json             written by sync
-  state    ~/.local/state/omarchy-artwall/state.json            written by next/rerender
+  config   ~/.config/omarchy/tessella/config.json   written by the panel
+  library  ~/.local/share/tessella/library.json          written by sync
+  sync     ~/.local/state/tessella/sync.json             written by sync
+  state    ~/.local/state/tessella/state.json            written by next/rerender
 """
 
 import base64
@@ -26,6 +27,7 @@ import json
 import os
 import random
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -35,9 +37,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 HOME = Path.home()
-CONFIG_PATH = HOME / ".config/omarchy/artstation-wallpaper/config.json"
-DATA_DIR = HOME / ".local/share/omarchy-artwall"
-STATE_DIR = HOME / ".local/state/omarchy-artwall"
+CONFIG_PATH = HOME / ".config/omarchy/tessella/config.json"
+DATA_DIR = HOME / ".local/share/tessella"
+STATE_DIR = HOME / ".local/state/tessella"
 LIBRARY_PATH = DATA_DIR / "library.json"
 IMAGES_DIR = DATA_DIR / "images"
 COLLAGE_DIR = DATA_DIR / "collages"
@@ -165,7 +167,8 @@ class Lock:
 class SyncProgress:
     def __init__(self):
         self.data = read_json(SYNC_PATH, {})
-        self.data.update({"running": True, "phase": "start", "done": 0, "total": 0, "errors": []})
+        self.data.update({"running": True, "pid": os.getpid(), "phase": "start",
+                          "done": 0, "total": 0, "errors": []})
         self.save()
 
     def set(self, **fields):
@@ -256,14 +259,54 @@ def tag_image(path, model):
     return tags
 
 
+class Cancelled(BaseException):
+    """Raised in the main thread on SIGTERM/SIGINT. A BaseException, so the
+    per-image `except Exception` handlers do not swallow it."""
+
+
+def raise_cancelled(signum, frame):
+    raise Cancelled()
+
+
 def cmd_sync():
     with Lock("sync"):
         progress = SyncProgress()
         try:
+            signal.signal(signal.SIGTERM, raise_cancelled)
+            signal.signal(signal.SIGINT, raise_cancelled)
             run_sync(progress)
+        except Cancelled:
+            # Counts as a sync, so the daily auto-sync does not restart the work
+            # the user just stopped. "Sync now" picks up where it ended.
+            progress.set(phase="cancelled", lastSync=int(time.time()))
         finally:
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
             # Never leave the panel showing a sync that is no longer running.
             progress.set(running=False)
+
+
+def running_sync_pid():
+    """PID of the running sync, or None. sync.json can claim a sync that was
+    killed hard (SIGKILL, crash), so check the process itself."""
+    pid = read_json(SYNC_PATH, {}).get("pid")
+    if not isinstance(pid, int):
+        return None
+    try:
+        args = Path(f"/proc/{pid}/cmdline").read_bytes().rstrip(b"\0").split(b"\0")
+    except OSError:
+        return None
+    if len(args) >= 2 and args[-1] == b"sync" and args[-2].endswith(b"tessella.py"):
+        return pid
+    return None
+
+
+def cmd_cancel():
+    pid = running_sync_pid()
+    if pid is None:
+        print("no sync running", file=sys.stderr)
+        return
+    os.kill(pid, signal.SIGTERM)
 
 
 def run_sync(progress):
@@ -314,7 +357,8 @@ def run_sync(progress):
 
     # Download new images, a few in parallel.
     progress.set(phase="download", done=0, total=len(pending))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+    try:
         futures = {pool.submit(download_entry, e): e for e in pending}
         for n, future in enumerate(concurrent.futures.as_completed(futures), 1):
             entry = futures[future]
@@ -328,6 +372,9 @@ def run_sync(progress):
             if n % 10 == 0 or n == len(pending):
                 progress.set(done=n)
                 write_json(LIBRARY_PATH, library)
+    finally:
+        # On cancel, drop queued downloads instead of waiting for all of them.
+        pool.shutdown(wait=False, cancel_futures=True)
     write_json(LIBRARY_PATH, library)
 
     # Tag downloaded images that have no (current) tags yet.
@@ -632,17 +679,21 @@ def cmd_status():
     counts = theme_counts(tagged)
     themes = [{"name": t, "group": TAG_GROUP[t], "count": c}
               for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    sync = read_json(SYNC_PATH, {})
+    if sync.get("running") and running_sync_pid() is None:
+        sync["running"] = False  # the sync died without cleaning up
     state = read_json(STATE_PATH, {})
     current = state.get("current") or {}
     if current.get("images"):
         current["layoutLabel"] = layout_label(
             current.get("layout") or f"portrait-cols-{len(current['images'])}")
     print(json.dumps({"artists": artists, "images": len(pool), "tagged": len(tagged),
-                      "themes": themes, "sync": read_json(SYNC_PATH, {}),
+                      "themes": themes, "sync": sync,
                       "state": state}, ensure_ascii=False))
 
 
-COMMANDS = {"sync": cmd_sync, "next": cmd_next, "rerender": cmd_rerender, "status": cmd_status}
+COMMANDS = {"sync": cmd_sync, "cancel": cmd_cancel, "next": cmd_next, "rerender": cmd_rerender,
+            "status": cmd_status}
 
 if __name__ == "__main__":
     args = sys.argv[1:]
@@ -651,4 +702,4 @@ if __name__ == "__main__":
     elif len(args) == 1 and args[0] in COMMANDS:
         COMMANDS[args[0]]()
     else:
-        sys.exit(f"usage: artwall.py {{{'|'.join(COMMANDS)}}} | rerender --if-changed")
+        sys.exit(f"usage: tessella.py {{{'|'.join(COMMANDS)}}} | rerender --if-changed")

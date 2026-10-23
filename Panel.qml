@@ -6,7 +6,7 @@ import qs.Ui
 
 Panel {
   id: root
-  moduleName: "goldbarth.artstation-wallpaper"
+  moduleName: "goldbarth.tessella"
   manageIpc: false
 
   property var anchorItem: null
@@ -103,7 +103,7 @@ Panel {
 
           PanelHero {
             Layout.fillWidth: true
-            title: root.service ? root.service.themeLabel() : "ArtStation Wallpaper"
+            title: root.service ? root.service.themeLabel() : "Tessella"
             meta: !root.service ? "Service unavailable"
               : (root.service.layoutLabel() ? root.service.layoutLabel() + " · " : "") + root.service.nextText()
             foreground: root.foreground
@@ -170,16 +170,19 @@ Panel {
               onClicked: root.service.applyNext()
             }
 
+            // Turns into a cancel button while a sync runs.
             Button {
+              readonly property bool syncing: root.service !== null && root.service.syncing
+              readonly property bool cancelling: root.service !== null && root.service.cancelling
               Layout.fillWidth: true
-              text: root.service && root.service.syncing ? "Syncing…" : "Sync now"
-              iconText: "󰓦"
+              text: cancelling ? "Stopping…" : syncing ? "Cancel sync" : "Sync now"
+              iconText: syncing ? "󰜺" : "󰓦"
               bordered: true
-              enabled: root.service && !root.service.syncing
+              enabled: root.service !== null && !cancelling
               foreground: root.foreground
               accent: Color.accent
               fontFamily: root.fontFamily
-              onClicked: root.service.startSync()
+              onClicked: syncing ? root.service.cancelSync() : root.service.startSync()
             }
           }
 

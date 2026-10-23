@@ -4,7 +4,7 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "goldbarth.artstation-wallpaper"
+  moduleName: "goldbarth.tessella"
 
   readonly property var service: bar && bar.shell ? bar.shell.serviceFor(root.moduleName) : null
   readonly property bool ready: service !== null
@@ -49,6 +49,7 @@ BarWidget {
     function close(): void { root.close() }
     function next(): void { if (root.ready) root.service.applyNext() }
     function sync(): void { if (root.ready) root.service.startSync() }
+    function cancel(): void { if (root.ready) root.service.cancelSync() }
     function status(): string {
       if (!root.ready) return "service unavailable"
       return "enabled=" + root.service.enabled
@@ -67,7 +68,7 @@ BarWidget {
     text: "󰸉"
     dimmed: !root.ready || !root.service.enabled
     active: root.ready && root.service.lastError !== ""
-    tooltipText: !root.ready ? "ArtStation Wallpaper unavailable"
+    tooltipText: !root.ready ? "Tessella unavailable"
       : root.service.themeLabel() + " · " + root.service.nextText()
     onPressed: function(code) {
       if (code === Qt.MiddleButton) { if (root.ready) root.service.applyNext() }

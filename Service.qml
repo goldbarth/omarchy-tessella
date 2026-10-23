@@ -2,19 +2,19 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Schedules wallpaper changes and syncs. All real work happens in artwall.py;
+// Schedules wallpaper changes and syncs. All real work happens in tessella.py;
 // this service only decides *when* and mirrors its JSON status for the UI.
 Item {
   id: root
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string configDir: home + "/.config/omarchy/artstation-wallpaper"
+  readonly property string configDir: home + "/.config/omarchy/tessella"
   readonly property string configPath: configDir + "/config.json"
-  readonly property string stateDir: home + "/.local/state/omarchy-artwall"
+  readonly property string stateDir: home + "/.local/state/tessella"
   readonly property string themeNamePath: home + "/.local/state/omarchy/current/theme.name"
   readonly property string backgroundLink: home + "/.local/state/omarchy/current/background"
   readonly property string script: decodeURIComponent(
-    String(Qt.resolvedUrl("artwall.py")).replace(/^file:\/\//, ""))
+    String(Qt.resolvedUrl("tessella.py")).replace(/^file:\/\//, ""))
 
   readonly property int syncMaxAgeMs: 24 * 3600 * 1000
   readonly property int retryDelayMs: 5 * 60 * 1000
@@ -28,7 +28,7 @@ Item {
   readonly property var artists: Array.isArray(config.artists) ? config.artists : []
   readonly property var disabledThemes: Array.isArray(config.disabledThemes) ? config.disabledThemes : []
 
-  // Status mirrored from `artwall.py status`.
+  // Status mirrored from `tessella.py status`.
   property bool statusLoaded: false
   property var status: ({})
   readonly property var current: status.state && status.state.current ? status.state.current : null
@@ -36,6 +36,9 @@ Item {
   readonly property var themes: status.themes || []
   readonly property var artistStats: status.artists || []
   readonly property bool syncing: syncProc.running || sync.running === true
+  // Set by cancelSync() until the sync has actually stopped.
+  property bool cancelling: false
+  onSyncingChanged: if (!syncing) cancelling = false
   readonly property bool busy: nextProc.running
 
   property string lastError: ""
@@ -73,7 +76,7 @@ Item {
     configFile.setText(JSON.stringify(next, null, 2) + "\n")
   }
 
-  // Same rules as normalize_artist() in artwall.py.
+  // Same rules as normalize_artist() in tessella.py.
   function normalizeArtist(value) {
     var v = String(value || "").trim().toLowerCase()
     var sub = v.match(/^(?:https?:\/\/)?([a-z0-9_-]+)\.artstation\.com/)
@@ -130,6 +133,14 @@ Item {
       return
     }
     syncProc.running = true
+  }
+
+  // The sync may also run from a terminal, so stop it by PID, not via syncProc.
+  function cancelSync() {
+    if (!root.syncing || root.cancelling) return
+    root.syncQueued = false
+    root.cancelling = true
+    cancelProc.running = true
   }
 
   function refreshStatus() {
@@ -217,6 +228,7 @@ Item {
 
   function syncText() {
     if (root.syncing) {
+      if (root.cancelling) return "Stopping sync…"
       var phase = { start: "Starting", feeds: "Fetching feeds", download: "Downloading images",
                     tagging: "Tagging" }[root.sync.phase] || "Syncing"
       return phase + (root.sync.total ? " " + root.sync.done + "/" + root.sync.total : "") + "…"
@@ -268,7 +280,7 @@ Item {
     command: ["readlink", "-f", root.backgroundLink]
     stdout: StdioCollector { id: backgroundOut; waitForEnd: true }
     onExited: {
-      var replaced = String(backgroundOut.text).indexOf("/omarchy-artwall/") === -1
+      var replaced = String(backgroundOut.text).indexOf("/tessella/") === -1
       if (replaced || Date.now() - root.themeChangedAt > 15000) {
         themePoll.stop()
         root.rerender(true)
@@ -301,10 +313,13 @@ Item {
 
   Process {
     id: initProc
-    // Watchers need existing files.
-    command: ["sh", "-c", "mkdir -p \"$1\" \"$2\" && touch \"$2/state.json\" \"$2/sync.json\"",
+    // Watchers need existing files. Without config.json, a config written later
+    // (by hand or a script) goes unnoticed and the next saveConfig() overwrites it.
+    command: ["sh", "-c",
+              "mkdir -p \"$1\" \"$2\" && touch \"$1/config.json\" \"$2/state.json\" \"$2/sync.json\"",
               "sh", root.configDir, root.stateDir]
     onExited: {
+      configFile.reload()
       stateFile.reload()
       syncFile.reload()
       root.refreshStatus()
@@ -396,6 +411,13 @@ Item {
       }
       root.refreshStatus()
     }
+  }
+
+  Process {
+    id: cancelProc
+    command: ["python3", "-I", root.script, "cancel"]
+    // Covers "no sync running" (stale status): nothing will flip `syncing`.
+    onExited: root.refreshStatus()
   }
 
   Timer {
