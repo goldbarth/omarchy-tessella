@@ -45,7 +45,7 @@ It is not affiliated with, endorsed by, or supported by ArtStation or Epic Games
 > [!IMPORTANT]
 > Tessella currently works with ArtStation only.
 > Would you like images from another site?
-> [Open an issue](https://github.com/goldbarth/tessella/issues/new) and name the site.
+> [Open an issue](https://github.com/goldbarth/omarchy-tessella/issues/new) and name the site.
 > If it is feasible, I will integrate it.
 
 ---
@@ -84,7 +84,7 @@ When several qualify, one is picked at random for each change.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/goldbarth/tessella --enable
+omarchy plugin add https://github.com/goldbarth/omarchy-tessella --enable
 ```
 
 If you use Ollama, pull the vision model once:
@@ -179,7 +179,7 @@ Images take about 100 to 450 MB per artist, depending on the size of their portf
 ## Limitations
 
 - ArtStation is the only image source.
-  Other sites can be requested [in an issue](https://github.com/goldbarth/tessella/issues/new).
+  Other sites can be requested [in an issue](https://github.com/goldbarth/omarchy-tessella/issues/new).
 - Tags come from a local model and are sometimes off, colors more often than settings or subjects.
 - Covers whose project title does not say "cover" can slip through and show cropped typography.
 - On multiple monitors the collage is rendered for the largest one.
