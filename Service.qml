@@ -31,6 +31,10 @@ Item {
   readonly property int intervalMinutes: Number(config.intervalMinutes) || 30
   readonly property var artists: Array.isArray(config.artists) ? config.artists : []
   readonly property var disabledThemes: Array.isArray(config.disabledThemes) ? config.disabledThemes : []
+  // "artist/id" keys excluded from future collages; undone from the panel.
+  readonly property var hiddenImages: Array.isArray(config.hiddenImages) ? config.hiddenImages : []
+  // Palette preset id from palettes.json; "" picks by theme only.
+  readonly property string palette: typeof config.palette === "string" ? config.palette : ""
 
   // Status mirrored from `tessella.py status`.
   property bool statusLoaded: false
@@ -39,11 +43,19 @@ Item {
   readonly property var sync: status.sync || ({})
   readonly property var themes: status.themes || []
   readonly property var artistStats: status.artists || []
+  readonly property var palettes: status.palettes || []
+  // Active preset with its close-match count, or null.
+  readonly property var paletteStatus: status.palette || null
+  readonly property int pendingColors: Number(status.pendingColors) || 0
+  // Hidden images with titles for the undo list.
+  readonly property var hiddenList: status.hidden || []
   readonly property bool syncing: syncProc.running || sync.running === true
   // Set by cancelSync() until the sync has actually stopped.
   property bool cancelling: false
   onSyncingChanged: if (!syncing) cancelling = false
-  readonly property bool busy: nextProc.running
+  readonly property bool busy: nextProc.running || backProc.running || replaceProc.running
+  // Whether the previous collage can be shown again, and why not.
+  readonly property var backState: status.back || ({ available: false, exists: false, reason: "" })
 
   property string lastError: ""
   property double nowEpoch: Date.now()
@@ -122,6 +134,24 @@ Item {
 
   function togglePaused() { root.setPaused(!root.paused) }
 
+  function isHidden(key) { return root.hiddenImages.indexOf(key) !== -1 }
+
+  // Hiding keeps the current collage; the image is skipped from the next pick on.
+  function setHidden(key, hidden) {
+    if (!key || root.isHidden(key) === hidden) return
+    root.saveConfig({ hiddenImages: hidden
+      ? root.hiddenImages.concat([key])
+      : root.hiddenImages.filter(function(k) { return k !== key }) })
+    root.refreshStatus()
+  }
+
+  function setPalette(id) {
+    root.saveConfig({ palette: String(id || "") })
+    // Matching needs every image's colors; sync analyzes the missing ones.
+    if (id && root.pendingColors > 0) root.startSync()
+    root.refreshStatus()
+  }
+
   function setIntervalMinutes(minutes) { root.saveConfig({ intervalMinutes: Number(minutes) }) }
 
   function setEnabledThemes(values) {
@@ -139,6 +169,20 @@ Item {
     if (nextProc.running) return
     root.lastError = ""
     nextProc.running = true
+  }
+
+  function applyBack() {
+    if (root.busy || !root.backState.available) return
+    root.lastError = ""
+    backProc.running = true
+  }
+
+  // Swap one image of the current collage; the others stay.
+  function replaceImage(key) {
+    if (root.busy || !key) return
+    root.lastError = ""
+    replaceProc.command = ["python3", "-I", root.script, "replace", String(key)]
+    replaceProc.running = true
   }
 
   function startSync() {
@@ -237,6 +281,33 @@ Item {
     return root.current && root.current.layoutLabel ? root.current.layoutLabel : ""
   }
 
+  // Palette of the current collage, with a note when it had to be loosened.
+  function paletteLabel() {
+    var p = root.current ? root.current.palette : null
+    if (!p) return ""
+    return p.label + ({ relaxed: " (relaxed)", none: " (ignored)" }[p.match] || "")
+  }
+
+  function paletteText() {
+    if (!root.palette) return "No palette: images are picked by theme only."
+    var lines = []
+    var s = root.paletteStatus
+    if (s) lines.push(s.matches + " images match " + s.label + " closely.")
+    else lines.push("This palette is no longer available.")
+    var p = root.current ? root.current.palette : null
+    if (p && p.id === root.palette) {
+      if (p.match === "relaxed")
+        lines.push("Too few close matches, so this collage uses the next-best images.")
+      else if (p.match === "none")
+        lines.push("Too few matches for a varied collage, so this one ignores the palette.")
+    } else if (s) {
+      lines.push("Applies from the next change.")
+    }
+    if (root.pendingColors > 0)
+      lines.push(root.pendingColors + " images still need a color analysis; sync picks them up.")
+    return lines.join(" ")
+  }
+
   function themeLabel() {
     if (!root.current) return "No wallpaper yet"
     return root.current.themes.length ? root.current.themes.join(" + ") : "Random"
@@ -246,7 +317,7 @@ Item {
     if (root.syncing) {
       if (root.cancelling) return "Stopping sync…"
       var phase = { start: "Starting", feeds: "Fetching feeds", download: "Downloading images",
-                    tagging: "Tagging" }[root.sync.phase] || "Syncing"
+                    colors: "Analyzing colors", tagging: "Tagging" }[root.sync.phase] || "Syncing"
       return phase + (root.sync.total ? " " + root.sync.done + "/" + root.sync.total : "") + "…"
     }
     var last = Number(root.sync.lastSync || 0)
@@ -410,6 +481,28 @@ Item {
         root.lastError = String(nextErr.text || "Change failed").trim().split("\n").pop()
         root.retryAfter = Date.now() + root.retryDelayMs
       }
+      root.refreshStatus()
+    }
+  }
+
+  Process {
+    id: backProc
+    command: ["python3", "-I", root.script, "back"]
+    stderr: StdioCollector { id: backErr; waitForEnd: true }
+    onExited: function(code) {
+      if (code !== 0 && code !== 3)
+        root.lastError = String(backErr.text || "Back failed").trim().split("\n").pop()
+      root.refreshStatus()
+    }
+  }
+
+  Process {
+    id: replaceProc
+    stderr: StdioCollector { id: replaceErr; waitForEnd: true }
+    onExited: function(code) {
+      // E.g. "No other image fits this slot": the collage stays as it is.
+      if (code !== 0 && code !== 3)
+        root.lastError = String(replaceErr.text || "Replace failed").trim().split("\n").pop()
       root.refreshStatus()
     }
   }

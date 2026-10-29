@@ -18,6 +18,7 @@ Panel {
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   property string addError: ""
+  property bool hiddenExpanded: false
 
   readonly property var groupLabels: ({ setting: "Setting", subject: "Subject", mood: "Mood",
                                         light: "Light", color: "Color" })
@@ -61,6 +62,14 @@ Panel {
     })
   }
 
+  function paletteOptions() {
+    if (!service) return []
+    return [{ value: "", label: "None", description: "Pick by theme only" }].concat(
+      service.palettes.map(function(p) {
+        return { value: p.id, label: p.label, description: p.light ? "Light" : "Dark" }
+      }))
+  }
+
   function enabledThemes() {
     if (!service) return []
     return service.themes
@@ -86,6 +95,7 @@ Panel {
       onTextKey: function(text) {
         if (!root.service) return
         if (text === "n" || text === "N") root.service.applyNext()
+        else if (text === "b" || text === "B") root.service.applyBack()
         else if ((text === "p" || text === "P") && root.service.enabled) root.service.togglePaused()
       }
 
@@ -107,7 +117,8 @@ Panel {
             Layout.fillWidth: true
             title: root.service ? root.service.themeLabel() : "Tessella"
             meta: !root.service ? "Service unavailable"
-              : (root.service.layoutLabel() ? root.service.layoutLabel() + " · " : "") + root.service.nextText()
+              : [root.service.layoutLabel(), root.service.paletteLabel(), root.service.nextText()]
+                  .filter(function(part) { return part !== "" }).join(" · ")
             foreground: root.foreground
             fontFamily: root.fontFamily
             iconComponent: Component {
@@ -137,21 +148,52 @@ Panel {
 
           Repeater {
             model: root.service && root.service.current ? root.service.current.images : []
-            delegate: Text {
+            delegate: RowLayout {
+              id: imageRow
               required property var modelData
+              readonly property bool hidden: root.service !== null && root.service.isHidden(modelData.key)
               Layout.fillWidth: true
-              text: "󰌹  " + modelData.title + "  ·  " + modelData.artist
-              textFormat: Text.PlainText
-              elide: Text.ElideRight
-              color: titleMouse.containsMouse ? root.foreground : root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
-              MouseArea {
-                id: titleMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Qt.openUrlExternally(modelData.link)
+              spacing: Style.space(8)
+
+              Text {
+                Layout.fillWidth: true
+                text: "󰌹  " + imageRow.modelData.title + "  ·  " + imageRow.modelData.artist
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                font.strikeout: imageRow.hidden
+                color: titleMouse.containsMouse ? root.foreground : root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                MouseArea {
+                  id: titleMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: Qt.openUrlExternally(imageRow.modelData.link)
+                }
+              }
+
+              Button {
+                iconText: String.fromCodePoint(0xf04e1)  // swap
+                tooltipText: "Replace this image, keep the others"
+                verticalPadding: 0  // keep the image list as dense as plain text rows
+                enabled: root.service !== null && !root.service.busy
+                opacity: enabled ? 1 : 0.5
+                foreground: root.foreground
+                accent: Color.accent
+                fontFamily: root.fontFamily
+                onClicked: root.service.replaceImage(imageRow.modelData.key)
+              }
+
+              Button {
+                iconText: String.fromCodePoint(imageRow.hidden ? 0xf0208 : 0xf0209)  // eye / eye-off
+                tooltipText: imageRow.hidden ? "Allow in future collages again"
+                                             : "Hide from future collages (stays until the next change)"
+                verticalPadding: 0
+                foreground: root.foreground
+                accent: Color.accent
+                fontFamily: root.fontFamily
+                onClicked: root.service.setHidden(imageRow.modelData.key, !imageRow.hidden)
               }
             }
           }
@@ -159,6 +201,19 @@ Panel {
           RowLayout {
             Layout.fillWidth: true
             spacing: Style.space(8)
+
+            Button {
+              text: "Back"
+              iconText: String.fromCodePoint(0xf004d)  // arrow left
+              tooltipText: "Show the previous collage again"
+              bordered: true
+              enabled: root.service !== null && root.service.backState.available && !root.service.busy
+              opacity: enabled ? 1 : 0.5  // the kit's Button has no disabled look
+              foreground: root.foreground
+              accent: Color.accent
+              fontFamily: root.fontFamily
+              onClicked: root.service.applyBack()
+            }
 
             Button {
               Layout.fillWidth: true
@@ -202,6 +257,18 @@ Panel {
               fontFamily: root.fontFamily
               onClicked: syncing ? root.service.cancelSync() : root.service.startSync()
             }
+          }
+
+          // A previous collage exists but cannot be shown on this screen or library.
+          Text {
+            Layout.fillWidth: true
+            visible: root.service !== null && root.service.backState.exists && !root.service.backState.available
+            text: root.service ? "Back unavailable: " + root.service.backState.reason + "." : ""
+            textFormat: Text.PlainText
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
           }
 
           Text {
@@ -290,6 +357,83 @@ Panel {
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.WordWrap
+          }
+
+          SearchableDropdown {
+            Layout.fillWidth: true
+            label: "Palette"
+            value: root.service ? root.service.palette : ""
+            options: root.paletteOptions()
+            placeholderText: "Search palettes…"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onChanged: function(value) { root.service.setPalette(value) }
+          }
+
+          Text {
+            Layout.fillWidth: true
+            text: root.service ? root.service.paletteText() : ""
+            textFormat: Text.PlainText
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+
+          // Hidden images, collapsed to one line; each can be allowed again.
+          Text {
+            Layout.fillWidth: true
+            visible: root.service !== null && root.service.hiddenList.length > 0
+            text: (root.hiddenExpanded ? "▾ " : "▸ ") + (root.service ? root.service.hiddenList.length : 0)
+              + " hidden " + (root.service && root.service.hiddenList.length === 1 ? "image" : "images")
+            textFormat: Text.PlainText
+            color: hiddenMouse.containsMouse ? root.foreground : root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            MouseArea {
+              id: hiddenMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.hiddenExpanded = !root.hiddenExpanded
+            }
+          }
+
+          Repeater {
+            model: root.hiddenExpanded && root.service ? root.service.hiddenList : []
+            delegate: RowLayout {
+              id: hiddenRow
+              required property var modelData
+              Layout.fillWidth: true
+              spacing: Style.space(8)
+
+              Text {
+                Layout.fillWidth: true
+                text: hiddenRow.modelData.title + "  ·  " + hiddenRow.modelData.artist
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: hiddenTitleMouse.containsMouse && hiddenRow.modelData.link ? root.foreground : root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                MouseArea {
+                  id: hiddenTitleMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: hiddenRow.modelData.link ? Qt.PointingHandCursor : Qt.ArrowCursor
+                  onClicked: if (hiddenRow.modelData.link) Qt.openUrlExternally(hiddenRow.modelData.link)
+                }
+              }
+
+              Button {
+                iconText: String.fromCodePoint(0xf0208)  // eye
+                tooltipText: "Allow in future collages again"
+                verticalPadding: 0
+                foreground: root.foreground
+                accent: Color.accent
+                fontFamily: root.fontFamily
+                onClicked: root.service.setHidden(hiddenRow.modelData.key, false)
+              }
+            }
           }
 
           PanelSeparator { Layout.fillWidth: true; foreground: root.foreground }
@@ -398,7 +542,7 @@ Panel {
           Text {
             Layout.fillWidth: true
             text: "New artists are downloaded right away and tagged locally with " + (root.service && root.service.config.visionModel
-              ? root.service.config.visionModel : "gemma3:12b") + ". Covers are skipped. Press N for the next wallpaper, P to pause or resume."
+              ? root.service.config.visionModel : "gemma3:12b") + ". Covers are skipped. Press N for the next wallpaper, B to go back, P to pause or resume."
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily

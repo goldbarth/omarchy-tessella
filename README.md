@@ -55,6 +55,7 @@ It is not affiliated with, endorsed by, or supported by ArtStation or Epic Games
 - Downloads the public artwork of the artists you add and keeps it up to date once a day.
 - Tags every image locally with a vision model (setting, subject, mood, light, color).
 - Rolls one or two themes per change, such as `snow + night` or `desert + spaceship`, and builds a collage from images that share them.
+- Optionally prefers artwork whose colors fit a palette preset, such as Nord, Gruvbox or Catppuccin Mocha.
 - Fits the layout to your screen and re-fits it when you switch monitors, resolution, or rotation.
 - Keeps the current collage when you switch the Omarchy theme and redraws it with the new theme's background color between the images.
 
@@ -71,6 +72,30 @@ When several qualify, one is picked at random for each change.
 | 4:3 | 2 × portrait |
 | 32:9 | 4 × portrait or 2 × landscape |
 | 9:16 (rotated) | 3 × landscape stacked |
+
+## Palettes
+
+The **Palette** picker in the panel makes the plugin prefer images whose colors fit a preset.
+It combines with themes: `snow` with Nord picks snowy images in cool blue-gray tones.
+The artwork itself is never recolored.
+
+Presets cover every theme bundled with Omarchy (checked on 2026-10-29) and all variants of Catppuccin (Latte, Frappé, Macchiato, Mocha), Tokyo Night (Night, Storm, Moon, Day) and Rosé Pine (Rosé Pine, Moon, Dawn).
+
+Matching works on colors, not on the vision model's tags:
+
+1. Every sync reduces each new image to its eight dominant colors with ImageMagick.
+   For the whole library this takes well under a minute and happens only once per image.
+2. A preset is its background, its foreground, the tones between them, and its accent colors.
+3. An image matches closely when its dominant colors sit near the preset's colors and it ranks among the best 15% of the library for that preset.
+4. If close matches are too few for a varied collage, the next-best images are used and the panel says "relaxed".
+   If even those are too few, the palette is ignored for that change, so a small library never gets stuck.
+
+Light presets like Catppuccin Latte or Rosé Pine Dawn find fewer matches in a library of mostly dark concept art.
+The panel shows how many images match the selected preset.
+
+Presets live in [`palettes.json`](palettes.json), one line per variant.
+To add one, add a variant with an `id`, a `name`, its `background`, `foreground` and `accents`, to an existing or new family.
+Nothing else needs to change, and no image has to be analyzed again.
 
 ## Requirements
 
@@ -118,10 +143,29 @@ omarchy bar move goldbarth.tessella --section right
 | Bar icon | Left click | Toggle the panel |
 | Bar icon | Middle click | Next wallpaper |
 | Panel | `n` | Next wallpaper |
+| Panel | `b` | Back to the previous collage |
 | Panel | `p` | Pause or resume rotation |
 | Panel | `Esc` | Close |
 | Panel | Image title | Open the project on ArtStation |
+| Panel | Swap icon next to an image | Replace only that image |
+| Panel | Eye icon next to an image | Hide it from future collages, or allow it again |
 | Panel | Artist name | Open the profile on ArtStation |
+
+**Back** shows the previous collage again, after **Next** or an automatic change.
+It restores the same images and layout, redrawn for the current screen and theme, and the collage it replaces becomes the new previous one.
+Only one previous collage is kept.
+Back is unavailable when one of its images was removed or its layout does not fit the current screen.
+
+**Replace** swaps a single image and keeps the others, the layout, the themes and the palette.
+The new image fits the slot, comes from a project not yet in the collage, and prefers artists with fewer images in it and images not shown recently.
+If nothing qualifies, the collage stays and the panel says why.
+Back undoes a replacement.
+
+**Hide** excludes a single image from future collages, for example one with an inaccurate tag or with typography the title filter missed.
+Other images of the same project or artist are not affected, and nothing is deleted.
+The current collage stays until the next change or a **Replace**.
+Hidden images are listed under the palette picker, where each can be allowed again.
+Hiding survives syncing, re-tagging and restarts, because it lives in the config, not in the image library.
 
 **Pause** keeps the current collage until you resume, without switching rotation off.
 Resuming does not change the wallpaper right away; the next change follows one full interval later.
@@ -134,6 +178,9 @@ The plugin can be driven over IPC, for example from a keybinding:
 
 ```bash
 omarchy-shell goldbarth.tessella next
+omarchy-shell goldbarth.tessella back
+omarchy-shell goldbarth.tessella replace <artist/id>   # key as listed by tessella.py status
+omarchy-shell goldbarth.tessella hide <artist/id>      # also: unhide
 omarchy-shell goldbarth.tessella togglePause   # also: pause, resume
 omarchy-shell goldbarth.tessella toggle
 omarchy-shell goldbarth.tessella sync
@@ -150,11 +197,13 @@ omarchy-shell goldbarth.tessella status
    It runs on startup when the last sync is older than a day, and right after you add or remove an artist.
 2. **Tagging** sends each new image, scaled down to 768 px, to your local Ollama instance (`OLLAMA_HOST`, default `127.0.0.1:11434`).
    Tags come from a fixed vocabulary, so themes stay comparable across artists.
-3. **Selection** picks a layout for the screen, then one or two themes, then images that share them.
+3. **Colors** reduces each new image to its dominant colors for palette matching.
+4. **Selection** picks a layout for the screen, then one or two themes, then images that share them.
+   With a palette selected, it picks from the images that fit the palette first.
    Each change is anchored on a random artist, so an artist with many images cannot crowd out the others.
    A collage never shows two images from the same project, and recently shown images wait their turn.
    Projects with "cover" or "poster" in the title are skipped, because their title typography looks broken when cropped.
-4. **Rendering** composes the collage with ImageMagick and sets it with `omarchy theme bg set`.
+5. **Rendering** composes the collage with ImageMagick and sets it with `omarchy theme bg set`.
 
 Network access goes only to `www.artstation.com` (RSS feeds), `cdn*.artstation.com` (images), and your local Ollama.
 
@@ -173,6 +222,8 @@ The panel writes this file, but you can also edit it by hand.
 | `disabledThemes` | `[]` | Themes that are never rolled |
 | `gap` | `10` | Gap between images in pixels |
 | `visionModel` | `"gemma3:12b"` | Ollama model used for tagging |
+| `palette` | `""` | Palette preset id from `palettes.json`, empty for none |
+| `hiddenImages` | `[]` | `artist/id` keys of images that are never picked |
 
 ## Files
 
@@ -189,6 +240,7 @@ Images take about 100 to 450 MB per artist, depending on the size of their portf
 - ArtStation is the only image source.
   Other sites can be requested [in an issue](https://github.com/goldbarth/omarchy-tessella/issues/new).
 - Tags come from a local model and are sometimes off, colors more often than settings or subjects.
+  Palette matching does not use these color tags.
 - Covers whose project title does not say "cover" can slip through and show cropped typography.
 - On multiple monitors the collage is rendered for the largest one.
   Omarchy shows the same image on every monitor.

@@ -48,6 +48,10 @@ BarWidget {
     function open(): void { root.open() }
     function close(): void { root.close() }
     function next(): void { if (root.ready) root.service.applyNext() }
+    function back(): void { if (root.ready) root.service.applyBack() }
+    function replace(key: string): void { if (root.ready) root.service.replaceImage(key) }
+    function hide(key: string): void { if (root.ready) root.service.setHidden(key, true) }
+    function unhide(key: string): void { if (root.ready) root.service.setHidden(key, false) }
     function pause(): void { if (root.ready) root.service.setPaused(true) }
     function resume(): void { if (root.ready) root.service.setPaused(false) }
     function togglePause(): void { if (root.ready) root.service.togglePaused() }
@@ -59,6 +63,7 @@ BarWidget {
         + " paused=" + root.service.paused
         + " layout=\"" + root.service.layoutLabel() + "\""
         + " themes=\"" + root.service.themeLabel() + "\""
+        + " palette=\"" + root.service.paletteLabel() + "\""
         + " next=\"" + root.service.nextText() + "\""
         + " sync=\"" + root.service.syncText() + "\""
         + (root.service.lastError ? " error=\"" + root.service.lastError + "\"" : "")
