@@ -7,7 +7,7 @@
 
 **Rotating wallpaper collages from your favorite ArtStation artists, fitted to your screen.**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-1BA897?style=flat-square&labelColor=26201A)](manifest.json)
+[![Version](https://img.shields.io/badge/version-0.2.0-1BA897?style=flat-square&labelColor=26201A)](manifest.json)
 [![Omarchy community plugin](https://img.shields.io/badge/Omarchy-community%20plugin-14807A?style=flat-square&labelColor=26201A)](https://plugins.omarchy.org/)
 [![Unofficial](https://img.shields.io/badge/ArtStation-unofficial-C68A35?style=flat-square&labelColor=26201A)](#trademarks-and-artwork)
 [![License: MIT](https://img.shields.io/badge/license-MIT-C68A35?style=flat-square&labelColor=26201A)](LICENSE)
