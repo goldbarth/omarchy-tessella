@@ -24,6 +24,10 @@ Item {
   property var config: ({})
   // Off until the user switches it on: it replaces the theme background.
   readonly property bool enabled: config.enabled === true
+  // Pause holds the current collage without switching rotation off. Resuming
+  // starts a fresh interval at resumedAt (epoch seconds) instead of changing at once.
+  readonly property bool paused: config.paused === true
+  readonly property double resumedAt: Number(config.resumedAt) || 0
   readonly property int intervalMinutes: Number(config.intervalMinutes) || 30
   readonly property var artists: Array.isArray(config.artists) ? config.artists : []
   readonly property var disabledThemes: Array.isArray(config.disabledThemes) ? config.disabledThemes : []
@@ -101,12 +105,22 @@ Item {
   }
 
   function setEnabled(value) {
-    root.saveConfig({ enabled: value === true })
+    // Switching rotation on or off always ends a pause.
+    root.saveConfig({ enabled: value === true, paused: false })
     if (value === true) {
       root.retryAfter = 0
       Qt.callLater(root.applyNext)
     }
   }
+
+  function setPaused(value) {
+    if (value === root.paused) return
+    root.saveConfig(value === true ? { paused: true }
+                                   : { paused: false, resumedAt: Math.floor(Date.now() / 1000) })
+    Qt.callLater(root.reconcile)
+  }
+
+  function togglePaused() { root.setPaused(!root.paused) }
 
   function setIntervalMinutes(minutes) { root.saveConfig({ intervalMinutes: Number(minutes) }) }
 
@@ -153,7 +167,9 @@ Item {
 
   // ---------- scheduling ----------
 
-  function lastChangeMs() { return root.current ? root.current.at * 1000 : 0 }
+  function lastChangeMs() {
+    return Math.max(root.current ? root.current.at * 1000 : 0, root.resumedAt * 1000)
+  }
 
   function msUntilDue() {
     return root.intervalMinutes * 60000 - (Date.now() - root.lastChangeMs())
@@ -175,14 +191,14 @@ Item {
       root.lastAutoSync = Date.now()
       root.startSync()
     }
-    if (root.enabled && !root.busy && Date.now() >= root.retryAfter && root.msUntilDue() <= 0)
+    if (root.enabled && !root.paused && !root.busy && Date.now() >= root.retryAfter && root.msUntilDue() <= 0)
       root.applyNext()
     root.armTimer()
   }
 
-  // Wake exactly when the next change is due; never spin while off.
+  // Wake exactly when the next change is due; never spin while off or paused.
   function armTimer() {
-    if (!root.enabled) {
+    if (!root.enabled || root.paused) {
       scheduleTimer.stop()
       return
     }
@@ -243,6 +259,7 @@ Item {
   function nextText() {
     if (!root.enabled) return "Automatic rotation off"
     if (root.busy) return "Switching…"
+    if (root.paused) return "Rotation paused"
     var m = root.minutesUntilNext()
     return "Next change " + (m > 0 ? "in " + m + " min" : "now")
   }
