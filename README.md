@@ -33,7 +33,7 @@ It is not affiliated with, endorsed by, or supported by ArtStation or Epic Games
       <sub>Three portraits side by side on 21:9</sub>
     </td>
     <td align="center" valign="top">
-      <img src="assets/preview-options.png" alt="The Tessella panel: current collage with image titles, rotation toggle, interval, themes and artists" width="162">
+      <img src="assets/preview-options.png" alt="The Tessella panel: current collage with replace and hide per image, Back, Next, Pause, rotation, interval, themes, palette and artists" width="142">
       <br>
       <sub>The panel</sub>
     </td>
