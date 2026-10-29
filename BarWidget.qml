@@ -48,6 +48,7 @@ BarWidget {
     function open(): void { root.open() }
     function close(): void { root.close() }
     function next(): void { if (root.ready) root.service.applyNext() }
+    function back(): void { if (root.ready) root.service.applyBack() }
     function pause(): void { if (root.ready) root.service.setPaused(true) }
     function resume(): void { if (root.ready) root.service.setPaused(false) }
     function togglePause(): void { if (root.ready) root.service.togglePaused() }

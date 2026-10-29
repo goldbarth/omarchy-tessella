@@ -49,7 +49,9 @@ Item {
   // Set by cancelSync() until the sync has actually stopped.
   property bool cancelling: false
   onSyncingChanged: if (!syncing) cancelling = false
-  readonly property bool busy: nextProc.running
+  readonly property bool busy: nextProc.running || backProc.running
+  // Whether the previous collage can be shown again, and why not.
+  readonly property var backState: status.back || ({ available: false, exists: false, reason: "" })
 
   property string lastError: ""
   property double nowEpoch: Date.now()
@@ -152,6 +154,12 @@ Item {
     if (nextProc.running) return
     root.lastError = ""
     nextProc.running = true
+  }
+
+  function applyBack() {
+    if (root.busy || !root.backState.available) return
+    root.lastError = ""
+    backProc.running = true
   }
 
   function startSync() {
@@ -450,6 +458,17 @@ Item {
         root.lastError = String(nextErr.text || "Change failed").trim().split("\n").pop()
         root.retryAfter = Date.now() + root.retryDelayMs
       }
+      root.refreshStatus()
+    }
+  }
+
+  Process {
+    id: backProc
+    command: ["python3", "-I", root.script, "back"]
+    stderr: StdioCollector { id: backErr; waitForEnd: true }
+    onExited: function(code) {
+      if (code !== 0 && code !== 3)
+        root.lastError = String(backErr.text || "Back failed").trim().split("\n").pop()
       root.refreshStatus()
     }
   }

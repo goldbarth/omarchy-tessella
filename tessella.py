@@ -11,13 +11,14 @@ Commands:
   rerender  render the current selection again (new theme colors); picks a
             fresh one if the layout no longer suits the screen
             --if-changed: only act when the screen size differs
+  back      show the previous selection again; the current one becomes the previous
   status    print a JSON summary for the shell panel
 
 Files (single writer each):
   config   ~/.config/omarchy/tessella/config.json   written by the panel
   library  ~/.local/share/tessella/library.json          written by sync
   sync     ~/.local/state/tessella/sync.json             written by sync
-  state    ~/.local/state/tessella/state.json            written by next/rerender
+  state    ~/.local/state/tessella/state.json            written by next/rerender/back
   palettes palettes.json next to this script               shipped catalog, read only
 """
 
@@ -755,18 +756,43 @@ def apply_next(config, library, state, w, h):
     candidates = [e for e in fitting if all(t in (e.get("tags") or []) for t in themes)]
     entries = pick_images(candidates, need, history, rng, anchor)
 
-    out = render(entries, gap, layout, w, h)
-    set_background(out)
-
     keep = max(need, distinct_projects(pool) // 2)
-    history = (history + [f"{e['artist']}/{e['id']}" for e in entries])[-keep:]
+    state["history"] = (history + [f"{e['artist']}/{e['id']}" for e in entries])[-keep:]
+    return show(config, state, entries, layout, themes,
+                {"id": palette["id"], "label": palette["label"], "match": match} if palette else None,
+                w, h)
+
+
+def show(config, state, entries, layout, themes, palette, w, h):
+    """Render and set a new selection. The one it replaces becomes `previous`,
+    so Back can restore it."""
+    out = render(entries, int(config["gap"]), layout, w, h)
+    set_background(out)
     current = {"themes": themes, "images": describe(entries), "layout": layout["key"],
                "screen": [w, h], "path": str(out), "at": int(time.time())}
     if palette:
-        current["palette"] = {"id": palette["id"], "label": palette["label"], "match": match}
-    write_json(STATE_PATH, {"current": current,
-                            "comboKey": "+".join(sorted(themes)), "history": history})
+        current["palette"] = palette
+    if state.get("current"):
+        state["previous"] = state["current"]
+    state.update(current=current, comboKey="+".join(sorted(themes)))
+    write_json(STATE_PATH, state)
     return current
+
+
+def restorable(selection, library, w, h, gap):
+    """(entries, layout, None) to show a stored selection again on this screen,
+    or (None, None, reason) when that is not possible."""
+    if not selection or not selection.get("images"):
+        return None, None, "No previous collage yet"
+    entries = [library["images"].get(i["key"]) for i in selection["images"]]
+    if not all(e and e.get("path") and Path(e["path"]).is_file() for e in entries):
+        return None, None, "An image of that collage is no longer downloaded"
+    # Selections from before layouts existed were portrait columns.
+    key = selection.get("layout") or f"portrait-cols-{len(entries)}"
+    layout = next((l for l in layouts_for(w, h, gap) if l["key"] == key), None)
+    if layout is None or not all(fits_slot(e, layout["slot"]) for e in entries):
+        return None, None, "That collage does not fit this screen"
+    return entries, layout, None
 
 
 def cmd_next():
@@ -795,18 +821,31 @@ def cmd_rerender(only_if_screen_changed=False):
         w, h = screen_size()
         if only_if_screen_changed and current.get("screen") == [w, h]:
             return
-        entries = [library["images"].get(i["key"]) for i in current.get("images", [])]
-        # Selections from before layouts existed were portrait columns.
-        key = current.get("layout") or f"portrait-cols-{len(entries)}"
-        layout = next((l for l in layouts_for(w, h, int(config["gap"])) if l["key"] == key), None)
-        usable = all(e and e.get("path") and Path(e["path"]).is_file() for e in entries)
-        if layout is None or not usable or not all(fits_slot(e, layout["slot"]) for e in entries):
+        entries, layout, problem = restorable(current, library, w, h, int(config["gap"]))
+        if problem:
             apply_next(config, library, state, w, h)
             return
         out = render(entries, int(config["gap"]), layout, w, h)
         set_background(out)
-        current.update(path=str(out), layout=key, screen=[w, h])
+        current.update(path=str(out), layout=layout["key"], screen=[w, h])
         write_json(STATE_PATH, state)
+
+
+def cmd_back():
+    """Show the previous selection again, re-rendered for this screen and theme.
+    Nothing changes when it cannot be restored."""
+    with Lock("render"):
+        config = load_config()
+        library = read_json(LIBRARY_PATH, {"images": {}})
+        state = read_json(STATE_PATH, {})
+        previous = state.get("previous")
+        w, h = screen_size()
+        entries, layout, problem = restorable(previous, library, w, h, int(config["gap"]))
+        if problem:
+            sys.exit(problem)
+        current = show(config, state, entries, layout, previous.get("themes", []),
+                       previous.get("palette"), w, h)
+        print(f"{layout_label(current['layout'])}: {' + '.join(current['themes']) or 'random'}")
 
 
 def cmd_status():
@@ -835,18 +874,22 @@ def cmd_status():
     if sync.get("running") and running_sync_pid() is None:
         sync["running"] = False  # the sync died without cleaning up
     state = read_json(STATE_PATH, {})
+    w, h = screen_size()
+    _, _, problem = restorable(state.get("previous"), library, w, h, int(config["gap"]))
+    back = {"available": problem is None, "exists": bool(state.get("previous")),
+            "reason": problem or ""}
     current = state.get("current") or {}
     if current.get("images"):
         current["layoutLabel"] = layout_label(
             current.get("layout") or f"portrait-cols-{len(current['images'])}")
     print(json.dumps({"artists": artists, "images": len(pool), "tagged": len(tagged),
                       "themes": themes, "palettes": palettes, "palette": palette,
-                      "pendingColors": pending_colors, "sync": sync,
+                      "pendingColors": pending_colors, "back": back, "sync": sync,
                       "state": state}, ensure_ascii=False))
 
 
 COMMANDS = {"sync": cmd_sync, "cancel": cmd_cancel, "next": cmd_next, "rerender": cmd_rerender,
-            "status": cmd_status}
+            "back": cmd_back, "status": cmd_status}
 
 if __name__ == "__main__":
     args = sys.argv[1:]
