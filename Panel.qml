@@ -147,21 +147,39 @@ Panel {
 
           Repeater {
             model: root.service && root.service.current ? root.service.current.images : []
-            delegate: Text {
+            delegate: RowLayout {
+              id: imageRow
               required property var modelData
               Layout.fillWidth: true
-              text: "󰌹  " + modelData.title + "  ·  " + modelData.artist
-              textFormat: Text.PlainText
-              elide: Text.ElideRight
-              color: titleMouse.containsMouse ? root.foreground : root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
-              MouseArea {
-                id: titleMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Qt.openUrlExternally(modelData.link)
+              spacing: Style.space(8)
+
+              Text {
+                Layout.fillWidth: true
+                text: "󰌹  " + imageRow.modelData.title + "  ·  " + imageRow.modelData.artist
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: titleMouse.containsMouse ? root.foreground : root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                MouseArea {
+                  id: titleMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: Qt.openUrlExternally(imageRow.modelData.link)
+                }
+              }
+
+              Button {
+                iconText: String.fromCodePoint(0xf04e1)  // swap
+                tooltipText: "Replace this image, keep the others"
+                verticalPadding: 0  // keep the image list as dense as plain text rows
+                enabled: root.service !== null && !root.service.busy
+                opacity: enabled ? 1 : 0.5
+                foreground: root.foreground
+                accent: Color.accent
+                fontFamily: root.fontFamily
+                onClicked: root.service.replaceImage(imageRow.modelData.key)
               }
             }
           }
