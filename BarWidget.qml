@@ -59,6 +59,7 @@ BarWidget {
         + " paused=" + root.service.paused
         + " layout=\"" + root.service.layoutLabel() + "\""
         + " themes=\"" + root.service.themeLabel() + "\""
+        + " palette=\"" + root.service.paletteLabel() + "\""
         + " next=\"" + root.service.nextText() + "\""
         + " sync=\"" + root.service.syncText() + "\""
         + (root.service.lastError ? " error=\"" + root.service.lastError + "\"" : "")

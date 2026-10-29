@@ -61,6 +61,14 @@ Panel {
     })
   }
 
+  function paletteOptions() {
+    if (!service) return []
+    return [{ value: "", label: "None", description: "Pick by theme only" }].concat(
+      service.palettes.map(function(p) {
+        return { value: p.id, label: p.label, description: p.light ? "Light" : "Dark" }
+      }))
+  }
+
   function enabledThemes() {
     if (!service) return []
     return service.themes
@@ -107,7 +115,8 @@ Panel {
             Layout.fillWidth: true
             title: root.service ? root.service.themeLabel() : "Tessella"
             meta: !root.service ? "Service unavailable"
-              : (root.service.layoutLabel() ? root.service.layoutLabel() + " · " : "") + root.service.nextText()
+              : [root.service.layoutLabel(), root.service.paletteLabel(), root.service.nextText()]
+                  .filter(function(part) { return part !== "" }).join(" · ")
             foreground: root.foreground
             fontFamily: root.fontFamily
             iconComponent: Component {
@@ -285,6 +294,27 @@ Panel {
           Text {
             Layout.fillWidth: true
             text: "Deselected themes are never rolled. Their images can still show up through other themes."
+            textFormat: Text.PlainText
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+
+          SearchableDropdown {
+            Layout.fillWidth: true
+            label: "Palette"
+            value: root.service ? root.service.palette : ""
+            options: root.paletteOptions()
+            placeholderText: "Search palettes…"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onChanged: function(value) { root.service.setPalette(value) }
+          }
+
+          Text {
+            Layout.fillWidth: true
+            text: root.service ? root.service.paletteText() : ""
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
