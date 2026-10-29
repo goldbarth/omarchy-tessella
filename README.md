@@ -148,6 +148,7 @@ omarchy bar move goldbarth.tessella --section right
 | Panel | `Esc` | Close |
 | Panel | Image title | Open the project on ArtStation |
 | Panel | Swap icon next to an image | Replace only that image |
+| Panel | Eye icon next to an image | Hide it from future collages, or allow it again |
 | Panel | Artist name | Open the profile on ArtStation |
 
 **Back** shows the previous collage again, after **Next** or an automatic change.
@@ -159,6 +160,12 @@ Back is unavailable when one of its images was removed or its layout does not fi
 The new image fits the slot, comes from a project not yet in the collage, and prefers artists with fewer images in it and images not shown recently.
 If nothing qualifies, the collage stays and the panel says why.
 Back undoes a replacement.
+
+**Hide** excludes a single image from future collages, for example one with an inaccurate tag or with typography the title filter missed.
+Other images of the same project or artist are not affected, and nothing is deleted.
+The current collage stays until the next change or a **Replace**.
+Hidden images are listed under the palette picker, where each can be allowed again.
+Hiding survives syncing, re-tagging and restarts, because it lives in the config, not in the image library.
 
 **Pause** keeps the current collage until you resume, without switching rotation off.
 Resuming does not change the wallpaper right away; the next change follows one full interval later.
@@ -173,6 +180,7 @@ The plugin can be driven over IPC, for example from a keybinding:
 omarchy-shell goldbarth.tessella next
 omarchy-shell goldbarth.tessella back
 omarchy-shell goldbarth.tessella replace <artist/id>   # key as listed by tessella.py status
+omarchy-shell goldbarth.tessella hide <artist/id>      # also: unhide
 omarchy-shell goldbarth.tessella togglePause   # also: pause, resume
 omarchy-shell goldbarth.tessella toggle
 omarchy-shell goldbarth.tessella sync
@@ -215,6 +223,7 @@ The panel writes this file, but you can also edit it by hand.
 | `gap` | `10` | Gap between images in pixels |
 | `visionModel` | `"gemma3:12b"` | Ollama model used for tagging |
 | `palette` | `""` | Palette preset id from `palettes.json`, empty for none |
+| `hiddenImages` | `[]` | `artist/id` keys of images that are never picked |
 
 ## Files
 

@@ -68,6 +68,9 @@ DEFAULT_CONFIG = {
     "gap": 10,
     "visionModel": "gemma3:12b",
     "palette": "",
+    # "artist/id" keys the user hid. Lives in the config, not the sync-owned
+    # library, so syncing and re-tagging never touch it.
+    "hiddenImages": [],
 }
 
 # Layouts are derived from the screen's aspect ratio: as many typical portrait
@@ -144,6 +147,8 @@ def write_json(path, data):
 def load_config():
     config = dict(DEFAULT_CONFIG)
     config.update(read_json(CONFIG_PATH, {}))
+    if not isinstance(config["hiddenImages"], list):
+        config["hiddenImages"] = []
     config["artists"] = [normalize_artist(a) for a in config.get("artists", []) if normalize_artist(a)]
     return config
 
@@ -493,8 +498,10 @@ EXCLUDE_TITLE_RE = re.compile(r"\b(cover|poster)s?\b", re.I)
 
 
 def usable_pool(library, config):
+    hidden = set(config["hiddenImages"])
     return [e for e in library["images"].values()
             if e.get("path") and e["artist"] in config["artists"]
+            and f"{e['artist']}/{e['id']}" not in hidden
             and not EXCLUDE_TITLE_RE.search(e.get("title", "")) and Path(e["path"]).is_file()]
 
 
@@ -940,6 +947,11 @@ def cmd_status():
         palette = {"id": palette["id"], "label": palette["label"], "matches": len(close),
                    "matchProjects": distinct_projects(close) if close else 0}
     pending_colors = sum(1 for e in pool if not analyzed(e))
+    hidden = []
+    for key in config["hiddenImages"]:
+        e = library["images"].get(key) or {}
+        hidden.append({"key": key, "artist": key.split("/")[0], "title": e.get("title") or key,
+                       "link": e.get("project", "")})
     sync = read_json(SYNC_PATH, {})
     if sync.get("running") and running_sync_pid() is None:
         sync["running"] = False  # the sync died without cleaning up
@@ -954,7 +966,8 @@ def cmd_status():
             current.get("layout") or f"portrait-cols-{len(current['images'])}")
     print(json.dumps({"artists": artists, "images": len(pool), "tagged": len(tagged),
                       "themes": themes, "palettes": palettes, "palette": palette,
-                      "pendingColors": pending_colors, "back": back, "sync": sync,
+                      "pendingColors": pending_colors, "back": back, "hidden": hidden,
+                      "sync": sync,
                       "state": state}, ensure_ascii=False))
 
 
