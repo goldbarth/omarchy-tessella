@@ -49,7 +49,7 @@ Item {
   // Set by cancelSync() until the sync has actually stopped.
   property bool cancelling: false
   onSyncingChanged: if (!syncing) cancelling = false
-  readonly property bool busy: nextProc.running || backProc.running
+  readonly property bool busy: nextProc.running || backProc.running || replaceProc.running
   // Whether the previous collage can be shown again, and why not.
   readonly property var backState: status.back || ({ available: false, exists: false, reason: "" })
 
@@ -160,6 +160,14 @@ Item {
     if (root.busy || !root.backState.available) return
     root.lastError = ""
     backProc.running = true
+  }
+
+  // Swap one image of the current collage; the others stay.
+  function replaceImage(key) {
+    if (root.busy || !key) return
+    root.lastError = ""
+    replaceProc.command = ["python3", "-I", root.script, "replace", String(key)]
+    replaceProc.running = true
   }
 
   function startSync() {
@@ -469,6 +477,17 @@ Item {
     onExited: function(code) {
       if (code !== 0 && code !== 3)
         root.lastError = String(backErr.text || "Back failed").trim().split("\n").pop()
+      root.refreshStatus()
+    }
+  }
+
+  Process {
+    id: replaceProc
+    stderr: StdioCollector { id: replaceErr; waitForEnd: true }
+    onExited: function(code) {
+      // E.g. "No other image fits this slot": the collage stays as it is.
+      if (code !== 0 && code !== 3)
+        root.lastError = String(replaceErr.text || "Replace failed").trim().split("\n").pop()
       root.refreshStatus()
     }
   }

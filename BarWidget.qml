@@ -49,6 +49,7 @@ BarWidget {
     function close(): void { root.close() }
     function next(): void { if (root.ready) root.service.applyNext() }
     function back(): void { if (root.ready) root.service.applyBack() }
+    function replace(key: string): void { if (root.ready) root.service.replaceImage(key) }
     function pause(): void { if (root.ready) root.service.setPaused(true) }
     function resume(): void { if (root.ready) root.service.setPaused(false) }
     function togglePause(): void { if (root.ready) root.service.togglePaused() }

@@ -12,13 +12,16 @@ Commands:
             fresh one if the layout no longer suits the screen
             --if-changed: only act when the screen size differs
   back      show the previous selection again; the current one becomes the previous
+  replace <artist/id>
+            swap one image of the current collage for another that fits its slot,
+            themes and palette; the other images stay
   status    print a JSON summary for the shell panel
 
 Files (single writer each):
   config   ~/.config/omarchy/tessella/config.json   written by the panel
   library  ~/.local/share/tessella/library.json          written by sync
   sync     ~/.local/state/tessella/sync.json             written by sync
-  state    ~/.local/state/tessella/state.json            written by next/rerender/back
+  state    ~/.local/state/tessella/state.json            written by next/rerender/back/replace
   palettes palettes.json next to this script               shipped catalog, read only
 """
 
@@ -756,11 +759,49 @@ def apply_next(config, library, state, w, h):
     candidates = [e for e in fitting if all(t in (e.get("tags") or []) for t in themes)]
     entries = pick_images(candidates, need, history, rng, anchor)
 
-    keep = max(need, distinct_projects(pool) // 2)
-    state["history"] = (history + [f"{e['artist']}/{e['id']}" for e in entries])[-keep:]
+    remember(state, pool, entries)
     return show(config, state, entries, layout, themes,
                 {"id": palette["id"], "label": palette["label"], "match": match} if palette else None,
                 w, h)
+
+
+def remember(state, pool, entries):
+    """Add shown images to the recently-shown list that new picks avoid."""
+    keep = max(len(entries), distinct_projects(pool) // 2)
+    state["history"] = (state.get("history", []) + [f"{e['artist']}/{e['id']}" for e in entries])[-keep:]
+
+
+def pick_replacement(pool, entries, index, layout, themes, palette, history, rng):
+    """An image for tile `index`: fits the slot, shares the collage's themes, comes
+    from a project not in the collage yet and fits its palette as closely as
+    possible. Artists with fewer tiles in the collage go first, then images not
+    shown recently. None if nothing qualifies."""
+    others = [e for i, e in enumerate(entries) if i != index]
+    projects = {e["project"] for e in entries}  # the replaced one too: show something new
+    fitting = [e for e in pool if e["project"] not in projects and fits_slot(e, layout["slot"])
+               and all(t in (e.get("tags") or []) for t in themes)]
+    preset = load_palettes().get(palette["id"]) if palette else None
+    tiers = palette_tiers(pool, preset)
+    # Start at the collage's own match level; loosen only if that has nothing.
+    start = next((i for i, (match, _) in enumerate(tiers) if match == (palette or {}).get("match")), 0)
+    for _, tier in tiers[start:]:
+        allowed = {id(e) for e in tier}
+        candidates = [e for e in fitting if id(e) in allowed]
+        if candidates:
+            break
+    else:
+        return None
+    by_artist = {}
+    for e in candidates:
+        by_artist.setdefault(e["artist"], []).append(e)
+    tiles = {a: sum(1 for e in others if e["artist"] == a) for a in by_artist}
+    fewest = min(tiles.values())
+    artist = rng.choice(sorted(a for a in by_artist if tiles[a] == fewest))
+    recent = set(history)
+    items = by_artist[artist]
+    rng.shuffle(items)
+    items.sort(key=lambda e: f"{e['artist']}/{e['id']}" in recent)  # stable: fresh first
+    return items[0]
 
 
 def show(config, state, entries, layout, themes, palette, w, h):
@@ -848,6 +889,35 @@ def cmd_back():
         print(f"{layout_label(current['layout'])}: {' + '.join(current['themes']) or 'random'}")
 
 
+def cmd_replace(key):
+    """Swap one tile of the current collage. Nothing changes if no image qualifies."""
+    with Lock("render"):
+        config = load_config()
+        library = read_json(LIBRARY_PATH, {"images": {}})
+        state = read_json(STATE_PATH, {})
+        current = state.get("current")
+        if not current:
+            sys.exit("No collage yet")
+        keys = [i["key"] for i in current.get("images", [])]
+        if key not in keys:
+            sys.exit("That image is no longer in the collage")
+        w, h = screen_size()
+        entries, layout, problem = restorable(current, library, w, h, int(config["gap"]))
+        if problem:
+            sys.exit(problem)
+        pool = usable_pool(library, config)
+        index = keys.index(key)
+        themes = current.get("themes", [])
+        entry = pick_replacement(pool, entries, index, layout, themes, current.get("palette"),
+                                 state.get("history", []), random.Random())
+        if entry is None:
+            sys.exit("No other image fits this slot" + (f" with {' + '.join(themes)}" if themes else ""))
+        entries[index] = entry
+        remember(state, pool, [entry])
+        show(config, state, entries, layout, themes, current.get("palette"), w, h)
+        print(f"Replaced {key} with {entry['artist']}/{entry['id']}")
+
+
 def cmd_status():
     config = load_config()
     library = read_json(LIBRARY_PATH, {"images": {}})
@@ -895,7 +965,10 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if args == ["rerender", "--if-changed"]:
         cmd_rerender(only_if_screen_changed=True)
+    elif len(args) == 2 and args[0] == "replace":
+        cmd_replace(args[1])
     elif len(args) == 1 and args[0] in COMMANDS:
         COMMANDS[args[0]]()
     else:
-        sys.exit(f"usage: tessella.py {{{'|'.join(COMMANDS)}}} | rerender --if-changed")
+        sys.exit(f"usage: tessella.py {{{'|'.join(COMMANDS)}}} | rerender --if-changed"
+                 " | replace <artist/id>")
