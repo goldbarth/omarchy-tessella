@@ -94,6 +94,7 @@ Panel {
       onTextKey: function(text) {
         if (!root.service) return
         if (text === "n" || text === "N") root.service.applyNext()
+        else if (text === "b" || text === "B") root.service.applyBack()
         else if ((text === "p" || text === "P") && root.service.enabled) root.service.togglePaused()
       }
 
@@ -170,6 +171,19 @@ Panel {
             spacing: Style.space(8)
 
             Button {
+              text: "Back"
+              iconText: String.fromCodePoint(0xf004d)  // arrow left
+              tooltipText: "Show the previous collage again"
+              bordered: true
+              enabled: root.service !== null && root.service.backState.available && !root.service.busy
+              opacity: enabled ? 1 : 0.5  // the kit's Button has no disabled look
+              foreground: root.foreground
+              accent: Color.accent
+              fontFamily: root.fontFamily
+              onClicked: root.service.applyBack()
+            }
+
+            Button {
               Layout.fillWidth: true
               text: root.service && root.service.busy ? "Switching…" : "Next wallpaper"
               iconText: "󰑐"
@@ -211,6 +225,18 @@ Panel {
               fontFamily: root.fontFamily
               onClicked: syncing ? root.service.cancelSync() : root.service.startSync()
             }
+          }
+
+          // A previous collage exists but cannot be shown on this screen or library.
+          Text {
+            Layout.fillWidth: true
+            visible: root.service !== null && root.service.backState.exists && !root.service.backState.available
+            text: root.service ? "Back unavailable: " + root.service.backState.reason + "." : ""
+            textFormat: Text.PlainText
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
           }
 
           Text {
@@ -428,7 +454,7 @@ Panel {
           Text {
             Layout.fillWidth: true
             text: "New artists are downloaded right away and tagged locally with " + (root.service && root.service.config.visionModel
-              ? root.service.config.visionModel : "gemma3:12b") + ". Covers are skipped. Press N for the next wallpaper, P to pause or resume."
+              ? root.service.config.visionModel : "gemma3:12b") + ". Covers are skipped. Press N for the next wallpaper, B to go back, P to pause or resume."
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily

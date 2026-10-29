@@ -143,10 +143,16 @@ omarchy bar move goldbarth.tessella --section right
 | Bar icon | Left click | Toggle the panel |
 | Bar icon | Middle click | Next wallpaper |
 | Panel | `n` | Next wallpaper |
+| Panel | `b` | Back to the previous collage |
 | Panel | `p` | Pause or resume rotation |
 | Panel | `Esc` | Close |
 | Panel | Image title | Open the project on ArtStation |
 | Panel | Artist name | Open the profile on ArtStation |
+
+**Back** shows the previous collage again, after **Next** or an automatic change.
+It restores the same images and layout, redrawn for the current screen and theme, and the collage it replaces becomes the new previous one.
+Only one previous collage is kept.
+Back is unavailable when one of its images was removed or its layout does not fit the current screen.
 
 **Pause** keeps the current collage until you resume, without switching rotation off.
 Resuming does not change the wallpaper right away; the next change follows one full interval later.
@@ -159,6 +165,7 @@ The plugin can be driven over IPC, for example from a keybinding:
 
 ```bash
 omarchy-shell goldbarth.tessella next
+omarchy-shell goldbarth.tessella back
 omarchy-shell goldbarth.tessella togglePause   # also: pause, resume
 omarchy-shell goldbarth.tessella toggle
 omarchy-shell goldbarth.tessella sync
