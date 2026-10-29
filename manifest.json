@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "author": "goldbarth",
   "license": "MIT",
-  "description": "Rotating wallpaper collages from ArtStation artists, fitted to your screen and grouped by locally tagged themes. ArtStation is the only image source for now; open an issue on GitHub to request another site.",
+  "description": "Rotating wallpaper collages from ArtStation artists, fitted to your screen. Themes from local image tagging, palette presets for every Omarchy theme, and controls to pause, go back, replace a single image or hide one. ArtStation is the only image source for now; open an issue on GitHub to request another site.",
   "kinds": [
     "service",
     "bar-widget"
