@@ -18,6 +18,7 @@ Panel {
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   property string addError: ""
+  property bool hiddenExpanded: false
 
   readonly property var groupLabels: ({ setting: "Setting", subject: "Subject", mood: "Mood",
                                         light: "Light", color: "Color" })
@@ -150,6 +151,7 @@ Panel {
             delegate: RowLayout {
               id: imageRow
               required property var modelData
+              readonly property bool hidden: root.service !== null && root.service.isHidden(modelData.key)
               Layout.fillWidth: true
               spacing: Style.space(8)
 
@@ -158,6 +160,7 @@ Panel {
                 text: "󰌹  " + imageRow.modelData.title + "  ·  " + imageRow.modelData.artist
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
+                font.strikeout: imageRow.hidden
                 color: titleMouse.containsMouse ? root.foreground : root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -180,6 +183,17 @@ Panel {
                 accent: Color.accent
                 fontFamily: root.fontFamily
                 onClicked: root.service.replaceImage(imageRow.modelData.key)
+              }
+
+              Button {
+                iconText: String.fromCodePoint(imageRow.hidden ? 0xf0208 : 0xf0209)  // eye / eye-off
+                tooltipText: imageRow.hidden ? "Allow in future collages again"
+                                             : "Hide from future collages (stays until the next change)"
+                verticalPadding: 0
+                foreground: root.foreground
+                accent: Color.accent
+                fontFamily: root.fontFamily
+                onClicked: root.service.setHidden(imageRow.modelData.key, !imageRow.hidden)
               }
             }
           }
@@ -364,6 +378,62 @@ Panel {
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.WordWrap
+          }
+
+          // Hidden images, collapsed to one line; each can be allowed again.
+          Text {
+            Layout.fillWidth: true
+            visible: root.service !== null && root.service.hiddenList.length > 0
+            text: (root.hiddenExpanded ? "▾ " : "▸ ") + (root.service ? root.service.hiddenList.length : 0)
+              + " hidden " + (root.service && root.service.hiddenList.length === 1 ? "image" : "images")
+            textFormat: Text.PlainText
+            color: hiddenMouse.containsMouse ? root.foreground : root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            MouseArea {
+              id: hiddenMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.hiddenExpanded = !root.hiddenExpanded
+            }
+          }
+
+          Repeater {
+            model: root.hiddenExpanded && root.service ? root.service.hiddenList : []
+            delegate: RowLayout {
+              id: hiddenRow
+              required property var modelData
+              Layout.fillWidth: true
+              spacing: Style.space(8)
+
+              Text {
+                Layout.fillWidth: true
+                text: hiddenRow.modelData.title + "  ·  " + hiddenRow.modelData.artist
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: hiddenTitleMouse.containsMouse && hiddenRow.modelData.link ? root.foreground : root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                MouseArea {
+                  id: hiddenTitleMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: hiddenRow.modelData.link ? Qt.PointingHandCursor : Qt.ArrowCursor
+                  onClicked: if (hiddenRow.modelData.link) Qt.openUrlExternally(hiddenRow.modelData.link)
+                }
+              }
+
+              Button {
+                iconText: String.fromCodePoint(0xf0208)  // eye
+                tooltipText: "Allow in future collages again"
+                verticalPadding: 0
+                foreground: root.foreground
+                accent: Color.accent
+                fontFamily: root.fontFamily
+                onClicked: root.service.setHidden(hiddenRow.modelData.key, false)
+              }
+            }
           }
 
           PanelSeparator { Layout.fillWidth: true; foreground: root.foreground }

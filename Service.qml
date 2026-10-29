@@ -31,6 +31,8 @@ Item {
   readonly property int intervalMinutes: Number(config.intervalMinutes) || 30
   readonly property var artists: Array.isArray(config.artists) ? config.artists : []
   readonly property var disabledThemes: Array.isArray(config.disabledThemes) ? config.disabledThemes : []
+  // "artist/id" keys excluded from future collages; undone from the panel.
+  readonly property var hiddenImages: Array.isArray(config.hiddenImages) ? config.hiddenImages : []
   // Palette preset id from palettes.json; "" picks by theme only.
   readonly property string palette: typeof config.palette === "string" ? config.palette : ""
 
@@ -45,6 +47,8 @@ Item {
   // Active preset with its close-match count, or null.
   readonly property var paletteStatus: status.palette || null
   readonly property int pendingColors: Number(status.pendingColors) || 0
+  // Hidden images with titles for the undo list.
+  readonly property var hiddenList: status.hidden || []
   readonly property bool syncing: syncProc.running || sync.running === true
   // Set by cancelSync() until the sync has actually stopped.
   property bool cancelling: false
@@ -129,6 +133,17 @@ Item {
   }
 
   function togglePaused() { root.setPaused(!root.paused) }
+
+  function isHidden(key) { return root.hiddenImages.indexOf(key) !== -1 }
+
+  // Hiding keeps the current collage; the image is skipped from the next pick on.
+  function setHidden(key, hidden) {
+    if (!key || root.isHidden(key) === hidden) return
+    root.saveConfig({ hiddenImages: hidden
+      ? root.hiddenImages.concat([key])
+      : root.hiddenImages.filter(function(k) { return k !== key }) })
+    root.refreshStatus()
+  }
 
   function setPalette(id) {
     root.saveConfig({ palette: String(id || "") })
