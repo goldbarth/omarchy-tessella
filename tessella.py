@@ -3,10 +3,11 @@
 
 Commands:
   sync      fetch every configured artist's RSS feed, download new images,
-            drop removed artists, tag untagged images via Ollama
+            drop removed artists, analyze image colors, tag untagged images via Ollama
   cancel    stop a running sync; what is done so far is kept
   next      pick a layout for the screen (e.g. 3 portraits on 21:9, 2 portraits
-            or 1 landscape on 16:9), 1-2 themes and images; render and set it
+            or 1 landscape on 16:9), 1-2 themes and images, preferring images
+            that fit the selected palette; render and set it
   rerender  render the current selection again (new theme colors); picks a
             fresh one if the layout no longer suits the screen
             --if-changed: only act when the screen size differs
@@ -17,6 +18,7 @@ Files (single writer each):
   library  ~/.local/share/tessella/library.json          written by sync
   sync     ~/.local/state/tessella/sync.json             written by sync
   state    ~/.local/state/tessella/state.json            written by next/rerender
+  palettes palettes.json next to this script               shipped catalog, read only
 """
 
 import base64
@@ -24,6 +26,7 @@ import concurrent.futures
 import fcntl
 import html
 import json
+import math
 import os
 import random
 import re
@@ -46,6 +49,7 @@ COLLAGE_DIR = DATA_DIR / "collages"
 SYNC_PATH = STATE_DIR / "sync.json"
 STATE_PATH = STATE_DIR / "state.json"
 THEME_COLORS = HOME / ".local/state/omarchy/current/theme/colors.toml"
+PALETTES_PATH = Path(__file__).resolve().with_name("palettes.json")
 
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 CONTENT_NS = "{http://purl.org/rss/1.0/modules/content/}encoded"
@@ -59,6 +63,7 @@ DEFAULT_CONFIG = {
     "disabledThemes": [],
     "gap": 10,
     "visionModel": "gemma3:12b",
+    "palette": "",
 }
 
 # Layouts are derived from the screen's aspect ratio: as many typical portrait
@@ -71,6 +76,20 @@ MAX_CROP = 0.3
 # A theme covering more of the pool than this is too generic to stand alone.
 GENERIC_SHARE = 0.6
 PAIR_CHANCE = 0.6
+
+# Every image is reduced to a few dominant colors (CIELAB + share) during sync.
+# Palette matching compares those to a palette, so changing or adding palettes
+# never needs a re-analysis. Bump SWATCH_VERSION when image_swatches() changes.
+SWATCH_VERSION = 1
+SWATCH_COUNT = 8
+# A close palette match is among the best PALETTE_SHARE of the analyzed pool and
+# at most PALETTE_MAX_SCORE (mean CIELAB distance) away. If close matches leave
+# fewer than PALETTE_VARIETY collages' worth of projects, the best RELAXED_SHARE
+# is used instead, and without enough of those the palette is ignored.
+PALETTE_SHARE = 0.15
+PALETTE_MAX_SCORE = 10
+RELAXED_SHARE = 0.3
+PALETTE_VARIETY = 3
 
 # Bump TAG_VERSION whenever VOCAB or the prompt changes: the next sync re-tags everything.
 TAG_VERSION = 4
@@ -212,6 +231,20 @@ def image_size(path):
     return int(w), int(h)
 
 
+def run_parallel(func, items, workers=4):
+    """Yield (item, result, error) as calls finish. On cancel, queued calls are dropped."""
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
+    try:
+        futures = {pool.submit(func, item): item for item in items}
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                yield futures[future], future.result(), None
+            except Exception as e:
+                yield futures[future], None, e
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+
 def download_entry(entry):
     """Download one image and record its size. Mutates entry."""
     path = IMAGES_DIR / entry["artist"] / f"{entry['id']}.{entry['ext']}"
@@ -222,6 +255,44 @@ def download_entry(entry):
     os.replace(tmp, path)
     entry["path"] = str(path)
     return entry
+
+
+def hex_to_lab(value):
+    """sRGB hex (#rrggbb) to CIELAB (D65)."""
+    return rgb_to_lab(*(int(value[i:i + 2], 16) for i in (1, 3, 5)))
+
+
+def rgb_to_lab(r, g, b):
+    def linear(c):
+        c /= 255
+        return ((c + 0.055) / 1.055) ** 2.4 if c > 0.04045 else c / 12.92
+
+    def f(t):
+        return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+
+    r, g, b = linear(r), linear(g), linear(b)
+    x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047)
+    y = f(0.2126 * r + 0.7152 * g + 0.0722 * b)
+    z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883)
+    return 116 * y - 16, 500 * (x - y), 200 * (y - z)
+
+
+HISTOGRAM_RE = re.compile(r"^\s*(\d+):\s*\(\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)", re.M)
+
+
+def image_swatches(path):
+    """The image's SWATCH_COUNT dominant colors as [[L, a, b, share], ...]."""
+    out = subprocess.run(["magick", "-define", "jpeg:size=128x128", str(path), "-alpha", "off",
+                          "-colorspace", "sRGB", "-depth", "8", "-resize", "64x64!", "+dither",
+                          "-colors", str(SWATCH_COUNT), "-format", "%c", "histogram:info:-"],
+                         capture_output=True, text=True, check=True).stdout
+    counts = [(int(n), rgb_to_lab(float(r), float(g), float(b)))
+              for n, r, g, b in HISTOGRAM_RE.findall(out)]
+    total = sum(n for n, _ in counts)
+    if not total:
+        raise ValueError("no colors found")
+    return [[round(L, 1) + 0.0, round(a, 1) + 0.0, round(b, 1) + 0.0, round(n / total, 3)]
+            for n, (L, a, b) in sorted(counts, key=lambda c: -c[0])]
 
 
 def ollama_url():
@@ -357,24 +428,33 @@ def run_sync(progress):
 
     # Download new images, a few in parallel.
     progress.set(phase="download", done=0, total=len(pending))
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
-    try:
-        futures = {pool.submit(download_entry, e): e for e in pending}
-        for n, future in enumerate(concurrent.futures.as_completed(futures), 1):
-            entry = futures[future]
-            try:
-                future.result()
-                entry.pop("new", None)
-            except Exception as e:  # keep going; the image is retried next sync
-                if entry.get("new"):
-                    del images[f"{entry['artist']}/{entry['id']}"]
-                progress.error(f"Download {entry['url']}: {e}")
-            if n % 10 == 0 or n == len(pending):
-                progress.set(done=n)
-                write_json(LIBRARY_PATH, library)
-    finally:
-        # On cancel, drop queued downloads instead of waiting for all of them.
-        pool.shutdown(wait=False, cancel_futures=True)
+    for n, (entry, _, error) in enumerate(run_parallel(download_entry, pending), 1):
+        if error is None:
+            entry.pop("new", None)
+        else:  # keep going; the image is retried next sync
+            if entry.get("new"):
+                del images[f"{entry['artist']}/{entry['id']}"]
+            progress.error(f"Download {entry['url']}: {error}")
+        if n % 10 == 0 or n == len(pending):
+            progress.set(done=n)
+            write_json(LIBRARY_PATH, library)
+    write_json(LIBRARY_PATH, library)
+
+    # Reduce new images to their dominant colors for palette matching. Fast
+    # (a few seconds per thousand images), so it runs before tagging.
+    unanalyzed = [e for e in images.values()
+                  if e.get("path") and e.get("swatchVersion") != SWATCH_VERSION]
+    progress.set(phase="colors", done=0, total=len(unanalyzed))
+    for n, (entry, swatches, error) in enumerate(
+            run_parallel(lambda e: image_swatches(e["path"]), unanalyzed), 1):
+        if error is None:
+            entry["swatches"] = swatches
+            entry["swatchVersion"] = SWATCH_VERSION
+        else:
+            progress.error(f"Colors {entry['id']}: {error}")
+        if n % 100 == 0 or n == len(unanalyzed):
+            progress.set(done=n)
+            write_json(LIBRARY_PATH, library)
     write_json(LIBRARY_PATH, library)
 
     # Tag downloaded images that have no (current) tags yet.
@@ -464,6 +544,52 @@ def pick_themes(pool, config, need, last_key, rng, anchor=None):
         if "+".join(sorted(themes)) != last_key:
             return themes
     return themes
+
+
+def load_palettes():
+    """{id: preset} from palettes.json, each with its family and a display label."""
+    palettes = {}
+    for family in read_json(PALETTES_PATH, {}).get("families", []):
+        for preset in family["variants"]:
+            label = family["name"] if preset["name"] == family["name"] \
+                else f"{family['name']} {preset['name']}"
+            palettes[preset["id"]] = dict(preset, family=family["name"], label=label)
+    return palettes
+
+
+def active_palette(config):
+    """The selected palette preset, or None (none selected, or no longer in the catalog)."""
+    return load_palettes().get(config.get("palette") or "")
+
+
+def palette_colors(preset):
+    """A palette as CIELAB colors: its background-to-foreground ramp plus its accents.
+    The ramp lets mid tones of the right tint count, not only the extremes."""
+    bg, fg = hex_to_lab(preset["background"]), hex_to_lab(preset["foreground"])
+    ramp = [tuple(b + (f - b) * step / 4 for b, f in zip(bg, fg)) for step in range(5)]
+    return ramp + [hex_to_lab(c) for c in preset.get("accents", [])]
+
+
+def palette_distance(entry, colors):
+    """Mean CIELAB distance of the image's dominant colors to their nearest palette color."""
+    return sum(share * min(math.dist((L, a, b), c) for c in colors)
+               for L, a, b, share in entry["swatches"])
+
+
+def analyzed(entry):
+    return entry.get("swatches") and entry.get("swatchVersion") == SWATCH_VERSION
+
+
+def palette_tiers(pool, preset):
+    """Candidate pools from strict to loose: [(match, entries)], ending with the whole
+    pool so a palette can never block selection."""
+    if preset is None:
+        return [(None, pool)]
+    colors = palette_colors(preset)
+    ranked = sorted((palette_distance(e, colors), i) for i, e in enumerate(pool) if analyzed(e))
+    close = [pool[i] for d, i in ranked[:int(len(ranked) * PALETTE_SHARE)] if d <= PALETTE_MAX_SCORE]
+    relaxed = [pool[i] for _, i in ranked[:int(len(ranked) * RELAXED_SHARE)]]
+    return [("close", close), ("relaxed", relaxed), ("none", pool)]
 
 
 def pick_images(candidates, need, history, rng, anchor=None):
@@ -587,19 +713,32 @@ def describe(entries):
              "link": e["project"], "tags": e.get("tags") or []} for e in entries]
 
 
+def feasible_layouts(pool, w, h, gap, variety=1):
+    """Layouts that suit the screen with their fitting images, if those span at
+    least `variety` collages' worth of projects."""
+    layouts = []
+    for layout in layouts_for(w, h, gap):
+        fitting = [e for e in pool if fits_slot(e, layout["slot"])]
+        if distinct_projects(fitting) >= layout["count"] * variety:
+            layouts.append((layout, fitting))
+    return layouts
+
+
 def apply_next(config, library, state, w, h):
     """Pick a layout, themes and images for this screen, render and set them."""
     pool = usable_pool(library, config)
     gap = int(config["gap"])
     rng = random.Random()
+    palette = active_palette(config)
 
     # Layouts that suit the screen and have enough fitting images; on a 16:9
-    # screen e.g. two portraits or one landscape, chosen at random.
-    layouts = []
-    for layout in layouts_for(w, h, gap):
-        fitting = [e for e in pool if fits_slot(e, layout["slot"])]
-        if distinct_projects(fitting) >= layout["count"]:
-            layouts.append((layout, fitting))
+    # screen e.g. two portraits or one landscape, chosen at random. With a
+    # palette, the closest matches are used if they leave enough variety.
+    for match, candidates in palette_tiers(pool, palette):
+        layouts = feasible_layouts(candidates, w, h, gap,
+                                   PALETTE_VARIETY if match in ("close", "relaxed") else 1)
+        if layouts:
+            break
     if not layouts:
         sys.exit(f"Not enough fitting images ({len(pool)}). Add artists and sync first.")
     layout, fitting = rng.choice(layouts)
@@ -621,19 +760,23 @@ def apply_next(config, library, state, w, h):
 
     keep = max(need, distinct_projects(pool) // 2)
     history = (history + [f"{e['artist']}/{e['id']}" for e in entries])[-keep:]
-    write_json(STATE_PATH, {"current": {"themes": themes, "images": describe(entries),
-                                        "layout": layout["key"], "screen": [w, h],
-                                        "path": str(out), "at": int(time.time())},
+    current = {"themes": themes, "images": describe(entries), "layout": layout["key"],
+               "screen": [w, h], "path": str(out), "at": int(time.time())}
+    if palette:
+        current["palette"] = {"id": palette["id"], "label": palette["label"], "match": match}
+    write_json(STATE_PATH, {"current": current,
                             "comboKey": "+".join(sorted(themes)), "history": history})
-    return themes, layout
+    return current
 
 
 def cmd_next():
     with Lock("render"):
         w, h = screen_size()
-        themes, layout = apply_next(load_config(), read_json(LIBRARY_PATH, {"images": {}}),
-                                    read_json(STATE_PATH, {}), w, h)
-        print(f"{layout_label(layout['key'])}: {' + '.join(themes) or 'random'}")
+        current = apply_next(load_config(), read_json(LIBRARY_PATH, {"images": {}}),
+                             read_json(STATE_PATH, {}), w, h)
+        palette = current.get("palette")
+        print(f"{layout_label(current['layout'])}: {' + '.join(current['themes']) or 'random'}"
+              + (f" · {palette['label']} ({palette['match']} match)" if palette else ""))
 
 
 def cmd_rerender(only_if_screen_changed=False):
@@ -679,6 +822,15 @@ def cmd_status():
     counts = theme_counts(tagged)
     themes = [{"name": t, "group": TAG_GROUP[t], "count": c}
               for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    palettes = [{"id": p["id"], "label": p["label"], "family": p["family"],
+                 "light": hex_to_lab(p["background"])[0] > 50}
+                for p in load_palettes().values()]
+    palette = active_palette(config)
+    if palette:
+        close = palette_tiers(pool, palette)[0][1]
+        palette = {"id": palette["id"], "label": palette["label"], "matches": len(close),
+                   "matchProjects": distinct_projects(close) if close else 0}
+    pending_colors = sum(1 for e in pool if not analyzed(e))
     sync = read_json(SYNC_PATH, {})
     if sync.get("running") and running_sync_pid() is None:
         sync["running"] = False  # the sync died without cleaning up
@@ -688,7 +840,8 @@ def cmd_status():
         current["layoutLabel"] = layout_label(
             current.get("layout") or f"portrait-cols-{len(current['images'])}")
     print(json.dumps({"artists": artists, "images": len(pool), "tagged": len(tagged),
-                      "themes": themes, "sync": sync,
+                      "themes": themes, "palettes": palettes, "palette": palette,
+                      "pendingColors": pending_colors, "sync": sync,
                       "state": state}, ensure_ascii=False))
 
 

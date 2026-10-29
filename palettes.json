@@ -1,0 +1,78 @@
+{
+  "families": [
+    {"name": "Catppuccin", "variants": [
+      {"id": "catppuccin-latte", "name": "Latte", "omarchyTheme": "catppuccin-latte", "background": "#eff1f5", "foreground": "#4c4f69", "accents": ["#d20f39", "#fe640b", "#df8e1d", "#40a02b", "#179299", "#1e66f5", "#8839ef", "#ea76cb"]},
+      {"id": "catppuccin-frappe", "name": "Frappé", "background": "#303446", "foreground": "#c6d0f5", "accents": ["#e78284", "#ef9f76", "#e5c890", "#a6d189", "#81c8be", "#8caaee", "#ca9ee6", "#f4b8e4"]},
+      {"id": "catppuccin-macchiato", "name": "Macchiato", "background": "#24273a", "foreground": "#cad3f5", "accents": ["#ed8796", "#f5a97f", "#eed49f", "#a6da95", "#8bd5ca", "#8aadf4", "#c6a0f6", "#f5bde6"]},
+      {"id": "catppuccin-mocha", "name": "Mocha", "omarchyTheme": "catppuccin", "background": "#1e1e2e", "foreground": "#cdd6f4", "accents": ["#f38ba8", "#fab387", "#f9e2af", "#a6e3a1", "#94e2d5", "#89b4fa", "#cba6f7", "#f5c2e7"]}
+    ]},
+    {"name": "Ethereal", "variants": [
+      {"id": "ethereal", "name": "Ethereal", "omarchyTheme": "ethereal", "background": "#060b1e", "foreground": "#ffcead", "accents": ["#7d82d9", "#ed5b5a", "#eb8b54", "#e9bb4f", "#92a593", "#a3bfd1", "#c89dc1"]}
+    ]},
+    {"name": "Everforest", "variants": [
+      {"id": "everforest", "name": "Everforest", "omarchyTheme": "everforest", "background": "#2d353b", "foreground": "#d3c6aa", "accents": ["#7fbbb3", "#e67e80", "#e09d7f", "#dbbc7f", "#a7c080", "#83c092", "#d699b6"]}
+    ]},
+    {"name": "Flexoki", "variants": [
+      {"id": "flexoki-light", "name": "Light", "omarchyTheme": "flexoki-light", "background": "#fffcf0", "foreground": "#100f0f", "accents": ["#205ea6", "#d14d41", "#d0772b", "#d0a215", "#879a39", "#3aa99f", "#ce5d97"]}
+    ]},
+    {"name": "Gruvbox", "variants": [
+      {"id": "gruvbox", "name": "Gruvbox", "omarchyTheme": "gruvbox", "background": "#282828", "foreground": "#d4be98", "accents": ["#7daea3", "#ea6962", "#e1875c", "#d8a657", "#a9b665", "#89b482", "#d3869b"]}
+    ]},
+    {"name": "Hackerman", "variants": [
+      {"id": "hackerman", "name": "Hackerman", "omarchyTheme": "hackerman", "background": "#0b0c16", "foreground": "#ddf7ff", "accents": ["#82fb9c", "#50f872", "#50f7a3", "#50f7d4", "#4fe88f", "#7cf8f7", "#829dd4", "#86a7df"]}
+    ]},
+    {"name": "Jade Horse", "variants": [
+      {"id": "jade-horse", "name": "Jade Horse", "omarchyTheme": "jade-horse", "background": "#142620", "foreground": "#dfede5", "accents": ["#8bcbb1", "#d88d91", "#d2ab8d", "#c5cc91", "#86c7c5", "#96b7d0", "#b7a1c8"]}
+    ]},
+    {"name": "Kanagawa", "variants": [
+      {"id": "kanagawa", "name": "Kanagawa", "omarchyTheme": "kanagawa", "background": "#1f1f28", "foreground": "#dcd7ba", "accents": ["#dcd7ba", "#c34043", "#c17158", "#c0a36e", "#76946a", "#6a9589", "#7e9cd8", "#957fb8"]}
+    ]},
+    {"name": "Last Horizon", "variants": [
+      {"id": "last-horizon", "name": "Last Horizon", "omarchyTheme": "last-horizon", "background": "#0c0b0c", "foreground": "#fafcfb", "accents": ["#b59790", "#c38b7b", "#6b5e73", "#87a9b0", "#a5a0b6", "#c4d8e2"]}
+    ]},
+    {"name": "Lumon", "variants": [
+      {"id": "lumon", "name": "Lumon", "omarchyTheme": "lumon", "background": "#16242d", "foreground": "#d6e2ee", "accents": ["#8bc9eb", "#4d86b0", "#6fa4c9", "#5e95bc", "#b4e4f6", "#6fb8e3"]}
+    ]},
+    {"name": "Lupine", "variants": [
+      {"id": "lupine", "name": "Lupine", "omarchyTheme": "lupine", "background": "#fafafa", "foreground": "#212121", "accents": ["#3264eb", "#c900c4", "#026fde", "#4a2fd0", "#0c67de", "#8a4ad7"]}
+    ]},
+    {"name": "Matte Black", "variants": [
+      {"id": "matte-black", "name": "Matte Black", "omarchyTheme": "matte-black", "background": "#121212", "foreground": "#bebebe", "accents": ["#e68e0d", "#d35f5f", "#c63d3d", "#b91c1c", "#ffc107", "#bebebe"]}
+    ]},
+    {"name": "Miasma", "variants": [
+      {"id": "miasma", "name": "Miasma", "omarchyTheme": "miasma", "background": "#222222", "foreground": "#c2c2b0", "accents": ["#78824b", "#685742", "#8d6242", "#b36d43", "#5f875f", "#c9a554", "#bb7744"]}
+    ]},
+    {"name": "Nord", "variants": [
+      {"id": "nord", "name": "Nord", "omarchyTheme": "nord", "background": "#2e3440", "foreground": "#d8dee9", "accents": ["#81a1c1", "#bf616a", "#d5967a", "#ebcb8b", "#a3be8c", "#88c0d0", "#b48ead"]}
+    ]},
+    {"name": "Retro 82", "variants": [
+      {"id": "retro-82", "name": "Retro 82", "omarchyTheme": "retro-82", "background": "#05182e", "foreground": "#f6dcac", "accents": ["#faa968", "#f85525", "#e97b3c", "#028391", "#8cbfb8", "#3f8f8a"]}
+    ]},
+    {"name": "Ristretto", "variants": [
+      {"id": "ristretto", "name": "Ristretto", "omarchyTheme": "ristretto", "background": "#2c2525", "foreground": "#e6d9db", "accents": ["#f38d70", "#fd6883", "#fb9a77", "#f9cc6c", "#adda78", "#85dacc", "#a8a9eb"]}
+    ]},
+    {"name": "Rosé Pine", "variants": [
+      {"id": "rose-pine-main", "name": "Rosé Pine", "background": "#191724", "foreground": "#e0def4", "accents": ["#eb6f92", "#f6c177", "#ebbcba", "#31748f", "#9ccfd8", "#c4a7e7"]},
+      {"id": "rose-pine-moon", "name": "Moon", "background": "#232136", "foreground": "#e0def4", "accents": ["#eb6f92", "#f6c177", "#ea9a97", "#3e8fb0", "#9ccfd8", "#c4a7e7"]},
+      {"id": "rose-pine-dawn", "name": "Dawn", "omarchyTheme": "rose-pine", "background": "#faf4ed", "foreground": "#575279", "accents": ["#b4637a", "#ea9d34", "#d7827e", "#286983", "#56949f", "#907aa9"]}
+    ]},
+    {"name": "Solitude", "variants": [
+      {"id": "solitude", "name": "Solitude", "omarchyTheme": "solitude", "background": "#101315", "foreground": "#cacccc", "accents": ["#798186", "#565d60", "#d9dbdc", "#9fa5a9", "#707070", "#aeaeae"]}
+    ]},
+    {"name": "Starship", "variants": [
+      {"id": "starship", "name": "Starship", "omarchyTheme": "starship", "background": "#1c1c1e", "foreground": "#f5f5f7", "accents": ["#ff9f0a", "#ff5f4a", "#ff6a3d", "#ffc27a", "#a6dcef", "#8fb8de", "#ff8fa3"]}
+    ]},
+    {"name": "Tokyo Night", "variants": [
+      {"id": "tokyo-night-night", "name": "Night", "omarchyTheme": "tokyo-night", "background": "#1a1b26", "foreground": "#c0caf5", "accents": ["#f7768e", "#ff9e64", "#e0af68", "#9ece6a", "#7dcfff", "#7aa2f7", "#bb9af7"]},
+      {"id": "tokyo-night-storm", "name": "Storm", "background": "#24283b", "foreground": "#c0caf5", "accents": ["#f7768e", "#ff9e64", "#e0af68", "#9ece6a", "#7dcfff", "#7aa2f7", "#bb9af7"]},
+      {"id": "tokyo-night-moon", "name": "Moon", "background": "#222436", "foreground": "#c8d3f5", "accents": ["#ff757f", "#ff966c", "#ffc777", "#c3e88d", "#86e1fc", "#82aaff", "#c099ff"]},
+      {"id": "tokyo-night-day", "name": "Day", "background": "#e1e2e7", "foreground": "#3760bf", "accents": ["#f52a65", "#b15c00", "#8c6c3e", "#587539", "#007197", "#2e7de9", "#9854f1"]}
+    ]},
+    {"name": "Vantablack", "variants": [
+      {"id": "vantablack", "name": "Vantablack", "omarchyTheme": "vantablack", "background": "#000000", "foreground": "#ffffff", "accents": ["#8d8d8d", "#a4a4a4", "#b9b9b9", "#cecece", "#b6b6b6", "#b0b0b0", "#9b9b9b"]}
+    ]},
+    {"name": "White", "variants": [
+      {"id": "white", "name": "White", "omarchyTheme": "white", "background": "#ffffff", "foreground": "#000000", "accents": ["#6e6e6e", "#2a2a2a", "#4a4a4a", "#3a3a3a", "#3e3e3e", "#1a1a1a", "#2e2e2e"]}
+    ]}
+  ]
+}
