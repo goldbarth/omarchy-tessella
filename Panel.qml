@@ -84,7 +84,9 @@ Panel {
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(text) {
-        if ((text === "n" || text === "N") && root.service) root.service.applyNext()
+        if (!root.service) return
+        if (text === "n" || text === "N") root.service.applyNext()
+        else if ((text === "p" || text === "P") && root.service.enabled) root.service.togglePaused()
       }
 
       Flickable {
@@ -168,6 +170,22 @@ Panel {
               accent: Color.accent
               fontFamily: root.fontFamily
               onClicked: root.service.applyNext()
+            }
+
+            // Holds the current collage; only meaningful while rotation is on.
+            Button {
+              readonly property bool paused: root.service !== null && root.service.paused
+              visible: root.service !== null && root.service.enabled
+              Layout.fillWidth: true
+              text: paused ? "Resume" : "Pause"
+              iconText: String.fromCodePoint(paused ? 0xf040a : 0xf03e4)  // play / pause
+              tooltipText: paused ? "Resume rotation; the next change follows after a full interval"
+                                  : "Keep this collage until you resume"
+              bordered: true
+              foreground: root.foreground
+              accent: Color.accent
+              fontFamily: root.fontFamily
+              onClicked: root.service.togglePaused()
             }
 
             // Turns into a cancel button while a sync runs.
@@ -380,7 +398,7 @@ Panel {
           Text {
             Layout.fillWidth: true
             text: "New artists are downloaded right away and tagged locally with " + (root.service && root.service.config.visionModel
-              ? root.service.config.visionModel : "gemma3:12b") + ". Covers are skipped. Press N for the next wallpaper."
+              ? root.service.config.visionModel : "gemma3:12b") + ". Covers are skipped. Press N for the next wallpaper, P to pause or resume."
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily

@@ -118,9 +118,14 @@ omarchy bar move goldbarth.tessella --section right
 | Bar icon | Left click | Toggle the panel |
 | Bar icon | Middle click | Next wallpaper |
 | Panel | `n` | Next wallpaper |
+| Panel | `p` | Pause or resume rotation |
 | Panel | `Esc` | Close |
 | Panel | Image title | Open the project on ArtStation |
 | Panel | Artist name | Open the profile on ArtStation |
+
+**Pause** keeps the current collage until you resume, without switching rotation off.
+Resuming does not change the wallpaper right away; the next change follows one full interval later.
+**Next wallpaper** still works while paused, and the pause survives shell restarts.
 
 In the panel you can also change the interval, deselect themes you do not want rolled, sync now or cancel a running sync, and add or remove artists.
 Removing an artist deletes their downloaded images.
@@ -129,6 +134,7 @@ The plugin can be driven over IPC, for example from a keybinding:
 
 ```bash
 omarchy-shell goldbarth.tessella next
+omarchy-shell goldbarth.tessella togglePause   # also: pause, resume
 omarchy-shell goldbarth.tessella toggle
 omarchy-shell goldbarth.tessella sync
 omarchy-shell goldbarth.tessella cancel
@@ -160,6 +166,8 @@ The panel writes this file, but you can also edit it by hand.
 | Key | Default | Description |
 |---|---|---|
 | `enabled` | `false` | Rotate automatically |
+| `paused` | `false` | Hold the current collage; written by **Pause** |
+| `resumedAt` | `0` | When rotation was last resumed (epoch seconds); the next change is due one interval later |
 | `intervalMinutes` | `30` | Minutes between changes |
 | `artists` | `[]` | ArtStation usernames |
 | `disabledThemes` | `[]` | Themes that are never rolled |

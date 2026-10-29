@@ -48,11 +48,15 @@ BarWidget {
     function open(): void { root.open() }
     function close(): void { root.close() }
     function next(): void { if (root.ready) root.service.applyNext() }
+    function pause(): void { if (root.ready) root.service.setPaused(true) }
+    function resume(): void { if (root.ready) root.service.setPaused(false) }
+    function togglePause(): void { if (root.ready) root.service.togglePaused() }
     function sync(): void { if (root.ready) root.service.startSync() }
     function cancel(): void { if (root.ready) root.service.cancelSync() }
     function status(): string {
       if (!root.ready) return "service unavailable"
       return "enabled=" + root.service.enabled
+        + " paused=" + root.service.paused
         + " layout=\"" + root.service.layoutLabel() + "\""
         + " themes=\"" + root.service.themeLabel() + "\""
         + " next=\"" + root.service.nextText() + "\""
@@ -66,7 +70,7 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: "󰸉"
-    dimmed: !root.ready || !root.service.enabled
+    dimmed: !root.ready || !root.service.enabled || root.service.paused
     active: root.ready && root.service.lastError !== ""
     tooltipText: !root.ready ? "Tessella unavailable"
       : root.service.themeLabel() + " · " + root.service.nextText()
