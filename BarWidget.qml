@@ -4,10 +4,10 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "goldbarth.tessella"
+  moduleName: "goldbarth.scenula"
 
   readonly property var service: bar && bar.shell ? bar.shell.serviceFor(root.moduleName) : null
-  readonly property bool ready: service !== null
+  readonly property bool ready: service !== null && service.initialized
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
 
   // BarWidget does not derive its size from children.
@@ -41,7 +41,7 @@ BarWidget {
     }
   }
 
-  IpcHandler {
+  component ScenulaIpc: IpcHandler {
     target: root.moduleName
 
     function toggle(): void { root.toggle() }
@@ -70,6 +70,10 @@ BarWidget {
     }
   }
 
+  ScenulaIpc { }
+  // Existing Hyprland bindings and scripts keep using the same methods.
+  ScenulaIpc { target: "goldbarth.tessella" }
+
   WidgetButton {
     id: button
     anchors.fill: parent
@@ -77,7 +81,7 @@ BarWidget {
     text: "󰸉"
     dimmed: !root.ready || !root.service.enabled || root.service.paused
     active: root.ready && root.service.lastError !== ""
-    tooltipText: !root.ready ? "Tessella unavailable"
+    tooltipText: !root.ready ? "Scenula unavailable"
       : root.service.themeLabel() + " · " + root.service.nextText()
     onPressed: function(code) {
       if (code === Qt.MiddleButton) { if (root.ready) root.service.applyNext() }
