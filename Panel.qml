@@ -6,7 +6,7 @@ import qs.Ui
 
 Panel {
   id: root
-  moduleName: "goldbarth.tessella"
+  moduleName: "goldbarth.scenula"
   manageIpc: false
 
   property var anchorItem: null
@@ -115,7 +115,7 @@ Panel {
 
           PanelHero {
             Layout.fillWidth: true
-            title: root.service ? root.service.themeLabel() : "Tessella"
+            title: root.service ? root.service.themeLabel() : "Scenula"
             meta: !root.service ? "Service unavailable"
               : [root.service.layoutLabel(), root.service.paletteLabel(), root.service.nextText()]
                   .filter(function(part) { return part !== "" }).join(" · ")

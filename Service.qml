@@ -2,19 +2,20 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Schedules wallpaper changes and syncs. All real work happens in tessella.py;
+// Schedules wallpaper changes and syncs. All real work happens in scenula.py;
 // this service only decides *when* and mirrors its JSON status for the UI.
 Item {
   id: root
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string configDir: home + "/.config/omarchy/tessella"
+  readonly property string configDir: home + "/.config/omarchy/scenula"
   readonly property string configPath: configDir + "/config.json"
-  readonly property string stateDir: home + "/.local/state/tessella"
+  readonly property string stateDir: home + "/.local/state/scenula"
   readonly property string themeNamePath: home + "/.local/state/omarchy/current/theme.name"
   readonly property string backgroundLink: home + "/.local/state/omarchy/current/background"
   readonly property string script: decodeURIComponent(
-    String(Qt.resolvedUrl("tessella.py")).replace(/^file:\/\//, ""))
+    String(Qt.resolvedUrl("scenula.py")).replace(/^file:\/\//, ""))
+  property bool initialized: false
 
   readonly property int syncMaxAgeMs: 24 * 3600 * 1000
   readonly property int retryDelayMs: 5 * 60 * 1000
@@ -36,7 +37,7 @@ Item {
   // Palette preset id from palettes.json; "" picks by theme only.
   readonly property string palette: typeof config.palette === "string" ? config.palette : ""
 
-  // Status mirrored from `tessella.py status`.
+  // Status mirrored from `scenula.py status`.
   property bool statusLoaded: false
   property var status: ({})
   readonly property var current: status.state && status.state.current ? status.state.current : null
@@ -76,6 +77,7 @@ Item {
   // ---------- config ----------
 
   function applyConfigText(text) {
+    if (!root.initialized) return
     var parsed = {}
     try { parsed = text && text.trim() ? JSON.parse(text) : {} }
     catch (e) { root.lastError = "Invalid config.json: " + e }
@@ -85,6 +87,7 @@ Item {
   }
 
   function saveConfig(patch) {
+    if (!root.initialized) return
     var next = {}
     for (var k in root.config) next[k] = root.config[k]
     for (var p in patch) next[p] = patch[p]
@@ -92,7 +95,7 @@ Item {
     configFile.setText(JSON.stringify(next, null, 2) + "\n")
   }
 
-  // Same rules as normalize_artist() in tessella.py.
+  // Same rules as normalize_artist() in scenula.py.
   function normalizeArtist(value) {
     var v = String(value || "").trim().toLowerCase()
     var sub = v.match(/^(?:https?:\/\/)?([a-z0-9_-]+)\.artstation\.com/)
@@ -166,12 +169,14 @@ Item {
   // ---------- actions ----------
 
   function applyNext() {
+    if (!root.initialized) return
     if (nextProc.running) return
     root.lastError = ""
     nextProc.running = true
   }
 
   function applyBack() {
+    if (!root.initialized) return
     if (root.busy || !root.backState.available) return
     root.lastError = ""
     backProc.running = true
@@ -179,6 +184,7 @@ Item {
 
   // Swap one image of the current collage; the others stay.
   function replaceImage(key) {
+    if (!root.initialized) return
     if (root.busy || !key) return
     root.lastError = ""
     replaceProc.command = ["python3", "-I", root.script, "replace", String(key)]
@@ -186,6 +192,7 @@ Item {
   }
 
   function startSync() {
+    if (!root.initialized) return
     if (syncProc.running) {
       root.syncQueued = true
       return
@@ -202,6 +209,7 @@ Item {
   }
 
   function refreshStatus() {
+    if (!root.initialized) return
     if (statusProc.running) {
       root.statusQueued = true
       return
@@ -254,6 +262,7 @@ Item {
   // Re-apply the current selection. `full` re-renders unconditionally (theme
   // switch: new gutter color); otherwise only when the screen size changed.
   function rerender(full) {
+    if (!root.initialized) return
     if (full) root.rerenderFull = true
     if (rerenderProc.running) {
       root.rerenderQueued = true
@@ -339,7 +348,7 @@ Item {
 
   FileView {
     id: configFile
-    path: root.configPath
+    path: root.initialized ? root.configPath : ""
     watchChanges: true
     printErrors: false
     atomicWrites: true
@@ -368,7 +377,8 @@ Item {
     command: ["readlink", "-f", root.backgroundLink]
     stdout: StdioCollector { id: backgroundOut; waitForEnd: true }
     onExited: {
-      var replaced = String(backgroundOut.text).indexOf("/tessella/") === -1
+      // Migrated libraries retain their original directory and collage paths.
+      var replaced = !/\/(scenula|tessella)\//.test(String(backgroundOut.text))
       if (replaced || Date.now() - root.themeChangedAt > 15000) {
         themePoll.stop()
         root.rerender(true)
@@ -379,7 +389,7 @@ Item {
   // Watch the backend's state so CLI runs show up live.
   FileView {
     id: stateFile
-    path: root.stateDir + "/state.json"
+    path: root.initialized ? root.stateDir + "/state.json" : ""
     watchChanges: true
     printErrors: false
     onFileChanged: { reload(); statusDebounce.restart() }
@@ -387,7 +397,7 @@ Item {
 
   FileView {
     id: syncFile
-    path: root.stateDir + "/sync.json"
+    path: root.initialized ? root.stateDir + "/sync.json" : ""
     watchChanges: true
     printErrors: false
     onFileChanged: { reload(); statusDebounce.restart() }
@@ -403,10 +413,14 @@ Item {
     id: initProc
     // Watchers need existing files. Without config.json, a config written later
     // (by hand or a script) goes unnoticed and the next saveConfig() overwrites it.
-    command: ["sh", "-c",
-              "mkdir -p \"$1\" \"$2\" && touch \"$1/config.json\" \"$2/state.json\" \"$2/sync.json\"",
-              "sh", root.configDir, root.stateDir]
-    onExited: {
+    command: ["python3", "-I", root.script, "init"]
+    stderr: StdioCollector { id: initErr; waitForEnd: true }
+    onExited: function(code) {
+      if (code !== 0) {
+        root.lastError = String(initErr.text || "Scenula initialization failed").trim()
+        return
+      }
+      root.initialized = true
       configFile.reload()
       stateFile.reload()
       syncFile.reload()
@@ -460,6 +474,8 @@ Item {
         } catch (e) {
           root.lastError = "Unreadable status: " + e
         }
+      } else {
+        root.lastError = "Could not read Scenula status; check data directory conflicts."
       }
       if (root.statusQueued) {
         root.statusQueued = false

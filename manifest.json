@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "id": "goldbarth.tessella",
-  "name": "Tessella",
-  "version": "0.2.0",
+  "id": "goldbarth.scenula",
+  "name": "Scenula",
+  "version": "0.3.0",
   "author": "goldbarth",
   "license": "MIT",
   "description": "Rotating wallpaper collages from ArtStation artists, fitted to your screen. Themes from local image tagging, palette presets for every Omarchy theme, and controls to pause, go back, replace a single image or hide one. ArtStation is the only image source for now; open an issue on GitHub to request another site.",
@@ -15,7 +15,7 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Tessella",
+    "displayName": "Scenula",
     "description": "Rotating ArtStation collages. Click for settings, middle-click for the next one.",
     "category": "System",
     "allowMultiple": false,
