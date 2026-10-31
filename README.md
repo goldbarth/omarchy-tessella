@@ -20,7 +20,7 @@
 > [!IMPORTANT]
 > **Tessella is now [Scenula](https://github.com/goldbarth/omarchy-scenula).**
 > This repository gets no further updates.
-> Existing users: run `omarchy plugin update goldbarth.tessella`, open Tessella in the bar and choose **Migrate to Scenula**.
+> Existing users: run `omarchy plugin update goldbarth.tessella` and `omarchy restart shell`, then open Tessella in the bar and choose **Migrate to Scenula**.
 > Your artists, images and settings stay.
 > New users: install Scenula instead with `omarchy plugin add https://github.com/goldbarth/omarchy-scenula --enable`.
 
