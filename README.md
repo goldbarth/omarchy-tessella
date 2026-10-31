@@ -1,13 +1,13 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/scenula-wordmark.svg">
-  <img alt="Scenula" src="assets/scenula-wordmark-light.svg" width="300">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/tessella-wordmark.svg">
+  <img alt="Tessella" src="assets/tessella-wordmark-light.svg" width="300">
 </picture>
 
 **Rotating wallpaper collages from your favorite ArtStation artists, fitted to your screen.**
 
-[![Version](https://img.shields.io/badge/version-0.3.0-1BA897?style=flat-square&labelColor=26201A)](manifest.json)
+[![Version](https://img.shields.io/badge/version-0.2.0-1BA897?style=flat-square&labelColor=26201A)](manifest.json)
 [![Omarchy community plugin](https://img.shields.io/badge/Omarchy-community%20plugin-14807A?style=flat-square&labelColor=26201A)](https://plugins.omarchy.org/)
 [![Unofficial](https://img.shields.io/badge/ArtStation-unofficial-C68A35?style=flat-square&labelColor=26201A)](#trademarks-and-artwork)
 [![License: MIT](https://img.shields.io/badge/license-MIT-C68A35?style=flat-square&labelColor=26201A)](LICENSE)
@@ -17,7 +17,7 @@
 
 </div>
 
-Scenula is a bar widget and service for [Omarchy](https://omarchy.org/).
+Tessella is a bar widget and service for [Omarchy](https://omarchy.org/).
 You add ArtStation artists, and it turns their work into wallpaper collages that change on a schedule.
 Most concept art is portrait, most screens are wide, so a single image rarely fills the desktop well.
 The plugin picks a layout that suits your screen, for example three portraits side by side on an ultrawide monitor.
@@ -28,24 +28,24 @@ It is not affiliated with, endorsed by, or supported by ArtStation or Epic Games
 <table align="center">
   <tr>
     <td align="center" valign="top">
-      <img src="preview.png" alt="An ultrawide desktop with a collage of three portrait images side by side and the Scenula panel open on the right" width="600">
+      <img src="preview.png" alt="An ultrawide desktop with a collage of three portrait images side by side and the Tessella panel open on the right" width="600">
       <br>
       <sub>Three portraits side by side on 21:9</sub>
     </td>
     <td align="center" valign="top">
-      <img src="assets/preview-options.png" alt="The Scenula panel: current collage with replace and hide per image, Back, Next, Pause, rotation, interval, themes, palette and artists" width="142">
+      <img src="assets/preview-options.png" alt="The Tessella panel: current collage with replace and hide per image, Back, Next, Pause, rotation, interval, themes, palette and artists" width="142">
       <br>
       <sub>The panel</sub>
     </td>
   </tr>
 </table>
 
-> *Scenula* - a small scene from a much larger world of art.
+> *Tessella* (Latin) - "a small mosaic tile". One small piece of a much larger world of art.
 
 > [!IMPORTANT]
-> Scenula currently works with ArtStation only.
+> Tessella currently works with ArtStation only.
 > Would you like images from another site?
-> [Open an issue](https://github.com/goldbarth/omarchy-scenula/issues/new) and name the site.
+> [Open an issue](https://github.com/goldbarth/omarchy-tessella/issues/new) and name the site.
 > If it is feasible, I will integrate it.
 
 ---
@@ -108,10 +108,8 @@ Nothing else needs to change, and no image has to be analyzed again.
 
 ## Install
 
-**Already using Tessella?** Follow [Upgrading from Tessella](#upgrading-from-tessella) instead of adding a second installation.
-
 ```bash
-omarchy plugin add https://github.com/goldbarth/omarchy-scenula --enable
+omarchy plugin add https://github.com/goldbarth/omarchy-tessella --enable
 ```
 
 If you use Ollama, pull the vision model once:
@@ -135,55 +133,8 @@ The plugin never touches your background before you switch it on.
 Move the widget if you want it elsewhere in the bar:
 
 ```bash
-omarchy bar move goldbarth.scenula --section right
+omarchy bar move goldbarth.tessella --section right
 ```
-
-## Upgrading from Tessella
-
-Scenula replaces Tessella, including the plugin ID (`goldbarth.tessella` to `goldbarth.scenula`).
-Omarchy currently updates Git checkouts and rescans manifests; it has no third-party ID migration hook.
-**An ordinary update alone cannot migrate the old bar entry.**
-Use this one-time sequence after the Scenula release is published:
-
-```bash
-omarchy plugin update goldbarth.tessella
-python3 ~/.config/omarchy/plugins/goldbarth.tessella/scenula.py migrate
-```
-
-The widget may be temporarily unavailable between these commands.
-Do not uninstall Tessella or install Scenula alongside it.
-If you already updated Tessella and its widget disappeared, run the second command.
-If the checkout has already moved, the same command is safe to repeat at `~/.config/omarchy/plugins/goldbarth.scenula/scenula.py`.
-
-The migration:
-
-- Renames the existing installed checkout, including its Git history, to `goldbarth.scenula`.
-- Replaces the old ID in `shell.json` bar entries, the center anchor, plugin entries and disabled entries, preserving placement, options, and enabled/disabled status.
-  Saves the original bytes as `~/.config/omarchy/shell.json.before-scenula` without replacing an earlier backup.
-- Creates Scenula directory aliases pointing to existing Tessella config, data and state directories.
-  The legacy directories stay in place, so image paths, tags, colors, hidden images, collages, history, pause state and background links remain valid.
-  Nothing is downloaded, tagged, reprocessed or deleted by migration.
-- Updates a recognized upstream Git `origin` URL to `goldbarth/omarchy-scenula`, preserving HTTPS or SSH transport.
-  Fork/custom remotes stay unchanged.
-- Rescans the shell; if it is unavailable, prints the command to run after starting it.
-
-Migration refuses independent old/new data directories, two installed checkouts, conflicting bar entries, invalid shell JSON and development symlinks.
-It does not merge them or pick which data to discard.
-Resolve the reported conflict first, keeping a backup of both copies, then retry.
-Completed steps are safe to repeat after an interruption.
-
-Existing `omarchy-shell goldbarth.tessella ...` bindings continue working once the Scenula widget loads.
-Use `goldbarth.scenula` for new commands, updates and removal.
-The `tessella.py` filename remains a small legacy entry point inside the renamed checkout; scripts with an absolute path to the old plugin directory must use the new directory.
-
-```bash
-omarchy plugin update goldbarth.scenula
-omarchy-shell goldbarth.scenula status
-```
-
-GitHub redirects old clone/fetch/push URLs after a repository rename, so existing installations can still fetch the migration release using their old remote.
-Do not reuse the old repository name, which would break that redirect.
-See [GitHub's repository rename documentation](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository).
 
 ## Usage
 
@@ -226,21 +177,21 @@ Removing an artist deletes their downloaded images.
 The plugin can be driven over IPC, for example from a keybinding:
 
 ```bash
-omarchy-shell goldbarth.scenula next
-omarchy-shell goldbarth.scenula back
-omarchy-shell goldbarth.scenula replace <artist/id>   # key as listed by scenula.py status
-omarchy-shell goldbarth.scenula hide <artist/id>      # also: unhide
-omarchy-shell goldbarth.scenula togglePause   # also: pause, resume
-omarchy-shell goldbarth.scenula toggle
-omarchy-shell goldbarth.scenula sync
-omarchy-shell goldbarth.scenula cancel
-omarchy-shell goldbarth.scenula status
+omarchy-shell goldbarth.tessella next
+omarchy-shell goldbarth.tessella back
+omarchy-shell goldbarth.tessella replace <artist/id>   # key as listed by tessella.py status
+omarchy-shell goldbarth.tessella hide <artist/id>      # also: unhide
+omarchy-shell goldbarth.tessella togglePause   # also: pause, resume
+omarchy-shell goldbarth.tessella toggle
+omarchy-shell goldbarth.tessella sync
+omarchy-shell goldbarth.tessella cancel
+omarchy-shell goldbarth.tessella status
 ```
 
 ## How it works
 
 `Service.qml` decides when to change, sync, or redraw.
-`scenula.py` does the work and is also usable from a terminal (`python3 scenula.py next`).
+`tessella.py` does the work and is also usable from a terminal (`python3 tessella.py next`).
 
 1. **Sync** reads each artist's public RSS feed (`https://www.artstation.com/<user>.rss`, all pages) and downloads new images from the ArtStation CDN.
    It runs on startup when the last sync is older than a day, and right after you add or remove an artist.
@@ -258,7 +209,7 @@ Network access goes only to `www.artstation.com` (RSS feeds), `cdn*.artstation.c
 
 ## Configuration
 
-Settings live in `~/.config/omarchy/scenula/config.json`.
+Settings live in `~/.config/omarchy/tessella/config.json`.
 The panel writes this file, but you can also edit it by hand.
 
 | Key | Default | Description |
@@ -278,19 +229,16 @@ The panel writes this file, but you can also edit it by hand.
 
 | Path | Content |
 |---|---|
-| `~/.config/omarchy/scenula/config.json` | Settings |
-| `~/.local/share/scenula/` | Downloaded images, tag library, current collages |
-| `~/.local/state/scenula/` | Sync progress, current selection, history |
-
-For migrated installations these three directories are symlinks to their existing `tessella` counterparts.
-Keep those legacy directories: they remain the backing storage, not disposable backups.
+| `~/.config/omarchy/tessella/config.json` | Settings |
+| `~/.local/share/tessella/` | Downloaded images, tag library, current collages |
+| `~/.local/state/tessella/` | Sync progress, current selection, history |
 
 Images take about 100 to 450 MB per artist, depending on the size of their portfolio.
 
 ## Limitations
 
 - ArtStation is the only image source.
-  Other sites can be requested [in an issue](https://github.com/goldbarth/omarchy-scenula/issues/new).
+  Other sites can be requested [in an issue](https://github.com/goldbarth/omarchy-tessella/issues/new).
 - Tags come from a local model and are sometimes off, colors more often than settings or subjects.
   Palette matching does not use these color tags.
 - Covers whose project title does not say "cover" can slip through and show cropped typography.
@@ -299,18 +247,18 @@ Images take about 100 to 450 MB per artist, depending on the size of their portf
 - ArtStation offers no public API for this.
   If the RSS feeds change or get blocked, syncing stops working, and already downloaded images keep rotating.
 - The plugin runs unsandboxed with your user permissions, like every Omarchy shell plugin.
-  Read the source files before you install it.
+  Read the four source files before you install it.
 
 ## Uninstall
 
 ```bash
-omarchy plugin remove goldbarth.scenula
+omarchy plugin remove goldbarth.tessella
+rm -rf ~/.config/omarchy/tessella ~/.local/share/tessella ~/.local/state/tessella
 omarchy theme bg next
 ```
 
-The second line switches back to a background of your current theme.
-Settings, images and state are retained, including legacy Tessella directories.
-Remove those separately only if you want to discard your library.
+The second line removes settings and downloaded images, which the plugin manager does not know about.
+The third line switches back to a background of your current theme.
 
 ## Trademarks and artwork
 
