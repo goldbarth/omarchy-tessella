@@ -16,6 +16,9 @@ Item {
   readonly property string script: decodeURIComponent(
     String(Qt.resolvedUrl("tessella.py")).replace(/^file:\/\//, ""))
 
+  readonly property string migrator: decodeURIComponent(
+    String(Qt.resolvedUrl("migrate-to-scenula.sh")).replace(/^file:\/\//, ""))
+
   readonly property int syncMaxAgeMs: 24 * 3600 * 1000
   readonly property int retryDelayMs: 5 * 60 * 1000
 
@@ -164,6 +167,13 @@ Item {
   }
 
   // ---------- actions ----------
+
+  // Runs in its own terminal: the migration replaces this plugin, so it must
+  // outlive the shell process that loaded it.
+  function migrateToScenula() {
+    Quickshell.execDetached(["omarchy-launch-floating-terminal-with-presentation",
+                             "bash '" + root.migrator.replace(/'/g, "'\\''") + "'"])
+  }
 
   function applyNext() {
     if (nextProc.running) return
@@ -413,7 +423,19 @@ Item {
       root.refreshStatus()
       // The monitor may have changed while the shell was not running.
       screenDebounce.restart()
+      renameNotice.running = true
     }
+  }
+
+  // Reaches users who never open the panel. At most once a day.
+  Process {
+    id: renameNotice
+    command: ["sh", "-c",
+              "marker=\"$1/scenula-notice\"; "
+              + "[ -n \"$(find \"$marker\" -mmin -1440 2>/dev/null)\" ] && exit 0; "
+              + "touch \"$marker\" && notify-send -a Tessella \"Tessella is now Scenula\" "
+              + "\"Open Tessella in the bar and choose Migrate to Scenula to keep getting updates.\"",
+              "sh", root.stateDir]
   }
 
   // Hotplug and mode switches emit several geometry changes; act once they settle.

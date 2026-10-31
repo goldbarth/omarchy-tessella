@@ -132,6 +132,61 @@ Panel {
             }
           }
 
+          // Tessella continues as Scenula in its own repository.
+          Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: renameColumn.implicitHeight + Style.space(24)
+            color: "transparent"
+            border.width: Math.max(1, Style.normalBorderWidth)
+            border.color: Color.accent
+
+            ColumnLayout {
+              id: renameColumn
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.margins: Style.space(12)
+              spacing: Style.space(8)
+
+              Text {
+                Layout.fillWidth: true
+                text: "Tessella is now Scenula"
+                textFormat: Text.PlainText
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                font.bold: true
+              }
+
+              Text {
+                Layout.fillWidth: true
+                text: "Same plugin, new name. Tessella gets no further updates. "
+                  + "Migrate once to switch: your artists, images and settings stay."
+                textFormat: Text.PlainText
+                wrapMode: Text.WordWrap
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+              }
+
+              Button {
+                Layout.fillWidth: true
+                text: "Migrate to Scenula"
+                iconText: String.fromCodePoint(0xf0054)  // arrow right
+                tooltipText: "Opens a terminal that installs Scenula and moves your setup"
+                bordered: true
+                enabled: root.service !== null
+                foreground: root.foreground
+                accent: Color.accent
+                fontFamily: root.fontFamily
+                onClicked: {
+                  root.close()
+                  root.service.migrateToScenula()
+                }
+              }
+            }
+          }
+
           // Current triptych, decoded only while the panel is open.
           Image {
             id: preview

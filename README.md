@@ -7,7 +7,7 @@
 
 **Rotating wallpaper collages from your favorite ArtStation artists, fitted to your screen.**
 
-[![Version](https://img.shields.io/badge/version-0.2.0-1BA897?style=flat-square&labelColor=26201A)](manifest.json)
+[![Version](https://img.shields.io/badge/version-0.2.1-1BA897?style=flat-square&labelColor=26201A)](manifest.json)
 [![Omarchy community plugin](https://img.shields.io/badge/Omarchy-community%20plugin-14807A?style=flat-square&labelColor=26201A)](https://plugins.omarchy.org/)
 [![Unofficial](https://img.shields.io/badge/ArtStation-unofficial-C68A35?style=flat-square&labelColor=26201A)](#trademarks-and-artwork)
 [![License: MIT](https://img.shields.io/badge/license-MIT-C68A35?style=flat-square&labelColor=26201A)](LICENSE)
@@ -16,6 +16,13 @@
 ![Python 3](https://img.shields.io/badge/Python-3%2C%20stdlib%20only-14807A?style=flat-square&logo=python&logoColor=2DD4BF&labelColor=26201A)
 
 </div>
+
+> [!IMPORTANT]
+> **Tessella is now [Scenula](https://github.com/goldbarth/omarchy-scenula).**
+> This repository gets no further updates.
+> Existing users: run `omarchy plugin update goldbarth.tessella`, open Tessella in the bar and choose **Migrate to Scenula**.
+> Your artists, images and settings stay.
+> New users: install Scenula instead with `omarchy plugin add https://github.com/goldbarth/omarchy-scenula --enable`.
 
 Tessella is a bar widget and service for [Omarchy](https://omarchy.org/).
 You add ArtStation artists, and it turns their work into wallpaper collages that change on a schedule.

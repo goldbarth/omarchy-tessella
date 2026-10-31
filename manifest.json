@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "goldbarth.tessella",
   "name": "Tessella",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "goldbarth",
   "license": "MIT",
-  "description": "Rotating wallpaper collages from ArtStation artists, fitted to your screen. Themes from local image tagging, palette presets for every Omarchy theme, and controls to pause, go back, replace a single image or hide one. ArtStation is the only image source for now; open an issue on GitHub to request another site.",
+  "description": "Tessella is now Scenula and gets no further updates. Update, open the panel and choose Migrate to Scenula; your artists, images and settings stay. Rotating wallpaper collages from ArtStation artists, fitted to your screen.",
   "kinds": [
     "service",
     "bar-widget"

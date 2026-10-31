@@ -77,8 +77,9 @@ BarWidget {
     text: "󰸉"
     dimmed: !root.ready || !root.service.enabled || root.service.paused
     active: root.ready && root.service.lastError !== ""
-    tooltipText: !root.ready ? "Tessella unavailable"
-      : root.service.themeLabel() + " · " + root.service.nextText()
+    tooltipText: (!root.ready ? "Tessella unavailable"
+      : root.service.themeLabel() + " · " + root.service.nextText())
+      + "\nTessella is now Scenula - click to migrate"
     onPressed: function(code) {
       if (code === Qt.MiddleButton) { if (root.ready) root.service.applyNext() }
       else root.toggle()
